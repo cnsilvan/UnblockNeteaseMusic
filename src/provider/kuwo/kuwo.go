@@ -2,6 +2,7 @@ package kuwo
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"network"
 	"strings"
@@ -11,11 +12,18 @@ import (
 func SearchSong(key map[string]interface{}) string {
 	keyword := key["keyword"].(string)
 	token := getToken(keyword)
-	header := make(map[string]string, 3)
-	header["referer"] = "http://www.kuwo.cn/search/list?key=" + url.QueryEscape(keyword)
-	header["csrf"] = token
-	header["cookie"] = "kw_token=" + token
-	resp, err := network.Get("http://www.kuwo.cn/api/www/search/searchMusicBykeyWord?key="+keyword+"&pn=1&rn=30", "kuwo.cn", header, false)
+	header := make(http.Header, 3)
+	header["referer"] = append(header["referer"], "http://www.kuwo.cn/search/list?key="+url.QueryEscape(keyword))
+	header["csrf"] = append(header["csrf"], token)
+	header["cookie"] = append(header["cookie"], "kw_token="+token)
+	clientRequest := network.ClientRequest{
+		Method:    http.MethodGet,
+		RemoteUrl: "http://www.kuwo.cn/api/www/search/searchMusicBykeyWord?key=" + keyword + "&pn=1&rn=30",
+		Host:      "kuwo.cn",
+		Header:    header,
+		Proxy:     false,
+	}
+	resp, err := network.Request(&clientRequest)
 	if err != nil {
 		fmt.Println(err)
 		return ""
@@ -36,7 +44,14 @@ func SearchSong(key map[string]interface{}) string {
 		}
 	}
 	if len(musicId) > 0 {
-		resp, err = network.Get("http://antiserver.kuwo.cn/anti.s?type=convert_url&format=mp3&response=url&rid=MUSIC_"+musicId, "antiserver.kuwo.cn", nil, false)
+		clientRequest := network.ClientRequest{
+			Method:    http.MethodGet,
+			RemoteUrl: "http://antiserver.kuwo.cn/anti.s?type=convert_url&format=mp3&response=url&rid=MUSIC_" + musicId,
+			Host:      "antiserver.kuwo.cn",
+			Header:    header,
+			Proxy:     false,
+		}
+		resp, err := network.Request(&clientRequest)
 		if err != nil {
 			fmt.Println(err)
 			return ""
@@ -53,7 +68,14 @@ func SearchSong(key map[string]interface{}) string {
 }
 func getToken(keyword string) string {
 	var token = ""
-	resp, err := network.Get("http://kuwo.cn/search/list?key="+keyword, "kuwo.cn", nil, false)
+	clientRequest := network.ClientRequest{
+		Method:    http.MethodGet,
+		RemoteUrl: "http://kuwo.cn/search/list?key=" + keyword,
+		Host:      "kuwo.cn",
+		Header:    nil,
+		Proxy:     false,
+	}
+	resp, err := network.Request(&clientRequest)
 	if err != nil {
 		fmt.Println(err)
 		return token

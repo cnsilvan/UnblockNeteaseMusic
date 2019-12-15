@@ -58,11 +58,14 @@ func AesEncryptECB(origData []byte, key []byte) (encrypted []byte) {
 
 	return encrypted
 }
-func AesDecryptECB(encrypted []byte, key []byte) (decrypted []byte) {
+func AesDecryptECB(encrypted []byte, key []byte) (decrypted []byte,success bool) {
 	cipher, _ := aes.NewCipher(generateKey(key))
 	decrypted = make([]byte, len(encrypted))
 	//
 	for bs, be := 0, cipher.BlockSize(); bs < len(encrypted); bs, be = bs+cipher.BlockSize(), be+cipher.BlockSize() {
+		if be > len(encrypted) {
+			return encrypted,false
+		}
 		cipher.Decrypt(decrypted[bs:be], encrypted[bs:be])
 	}
 
@@ -71,7 +74,7 @@ func AesDecryptECB(encrypted []byte, key []byte) (decrypted []byte) {
 		trim = len(decrypted) - int(decrypted[len(decrypted)-1])
 	}
 
-	return decrypted[:trim]
+	return decrypted[:trim],true
 }
 func generateKey(key []byte) (genKey []byte) {
 	genKey = make([]byte, 16)

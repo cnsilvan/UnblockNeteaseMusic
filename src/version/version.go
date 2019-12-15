@@ -16,5 +16,14 @@ func FullVersion() string {
 		Version, GitCommit, GoVersion, BuildTime)
 }
 func AppVersion() string {
-	return Version
+	return fmt.Sprintf(`
+		##       ##         ##        ##   ##       ##       ## ##     ## ## ##      ## ## 
+		##       ##       ## ##     ## ##  ##       ##    ##      ##      ##      ##      ##
+		##       ##      ##  ##    ##  ##  ##       ##   ##               ##     ##
+		##       ##     ##   ##   ##   ##  ##       ##    ## ## ##        ##     ##
+		##       ##    ##    ##  ##    ##  ##       ##            ##      ##     ## 
+		##       ##   ##     ## ##     ##  ##       ##  ##        ##      ##      ##      ##
+		## ## ## ##  ##      ####      ##  ## ## ## ##   ## ## ##      ## ## ##    ## ## ##
+		
+                       %s`+"  by cnsilvan（https://github.com/cnsilvan/UnblockNeteaseMusic） \n", Version)
 }

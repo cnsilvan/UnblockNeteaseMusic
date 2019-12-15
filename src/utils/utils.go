@@ -12,6 +12,13 @@ import (
 	"strings"
 )
 
+func FormatMap(data map[string]interface{}) string {
+	format := ""
+	for key, value := range data {
+		format += fmt.Sprintf("%s=%v\n", key, value)
+	}
+	return format
+}
 func ReplaceAll(str string, expr string, replaceStr string) string {
 	reg := regexp.MustCompile(expr)
 	str = reg.ReplaceAllString(str, replaceStr)
@@ -27,7 +34,7 @@ func ParseJson(data []byte) map[string]interface{} {
 func ToJson(object interface{}) string {
 	json, err := json.Marshal(object)
 	if err != nil {
-		fmt.Println("ToJson Error：",err)
+		fmt.Println("ToJson Error：", err)
 		return "{}"
 	}
 	return string(json)

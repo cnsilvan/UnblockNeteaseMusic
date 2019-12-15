@@ -202,7 +202,7 @@ func getHostsPath() (string, error) {
 	return hostsPath, nil
 }
 func InitHosts() error {
-	fmt.Println("-------------------Init Host-----------------------")
+	fmt.Println("-------------------Init Host-------------------")
 	hostsPath, err := getHostsPath()
 	if err == nil {
 		containsProxyDomain := false

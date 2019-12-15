@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"host"
+	"net/http"
 	"network"
 	"provider/kuwo"
 	"strconv"
 	"strings"
+	"sync"
 	"utils"
 )
 
@@ -21,17 +23,46 @@ type Song struct {
 type MapType = map[string]interface{}
 type SliceType = []interface{}
 
-var Cache  = make(map[string]Song)
+var Cache = new(cache)
 
+type cache struct {
+	sync.RWMutex
+	SongMap map[string]*Song
+}
+
+func UpdateCacheMd5(songId string, songMd5 string) {
+	Cache.RLock()
+	if Cache.SongMap == nil {
+		Cache.SongMap = make(map[string]*Song)
+	}
+	if song, ok := Cache.SongMap[songId]; ok {
+		song.Md5 = songMd5
+		//fmt.Println("update cache,songId:", songId, ",md5:", songMd5, utils.ToJson(song))
+	}
+	Cache.RUnlock()
+}
 func Find(id string) Song {
 	fmt.Println("find song info,id:", id)
-	if song,ok:=Cache[id];ok{
+	Cache.RLock()
+	defer Cache.RUnlock()
+	if Cache.SongMap == nil {
+		Cache.SongMap = make(map[string]*Song)
+	}
+
+	if song, ok := Cache.SongMap[id]; ok {
 		fmt.Println("hit cache:", utils.ToJson(song))
-		return song
+		return *song
 	}
 
 	var songT Song
-	resp, err := network.Get("https://"+host.ProxyDomain["music.163.com"]+"/api/song/detail?ids=["+id+"]", "music.163.com", nil, true)
+	clientRequest := network.ClientRequest{
+		Method:    http.MethodGet,
+		RemoteUrl: "https://" + host.ProxyDomain["music.163.com"] + "/api/song/detail?ids=[" + id + "]",
+		Host:      "music.163.com",
+		Header:    nil,
+		Proxy:     true,
+	}
+	resp, err := network.Request(&clientRequest)
 	if err != nil {
 		return songT
 	}
@@ -85,12 +116,12 @@ func Find(id string) Song {
 			songUrl := searchSong(modifiedJson)
 			songS := processSong(songUrl)
 			if songS.Size > 0 {
-				fmt.Println(utils.ToJson(songS))
-				Cache[id] = songS
+				//fmt.Println(utils.ToJson(songS))
+				Cache.SongMap[id] = &songS
 				return songS
 
 			}
-			fmt.Println(utils.ToJson(modifiedJson))
+			//fmt.Println(utils.ToJson(modifiedJson))
 			return songT
 		} else {
 			return songT
@@ -108,9 +139,15 @@ func searchSong(key MapType) string {
 func processSong(songUrl string) Song {
 	var song Song
 	if len(songUrl) > 0 {
-		header := make(map[string]string, 1)
-		header["range"] = "bytes=0-8191"
-		resp, err := network.Get(songUrl, "", header, false)
+		header := make(http.Header, 1)
+		header["range"] = append(header["range"], "bytes=0-8191")
+		clientRequest := network.ClientRequest{
+			Method:    http.MethodGet,
+			RemoteUrl: songUrl,
+			Header:    header,
+			Proxy:     false,
+		}
+		resp, err := network.Request(&clientRequest)
 		if err != nil {
 			fmt.Println("processSong fail:", err)
 			return song

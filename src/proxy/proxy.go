@@ -1,103 +1,86 @@
 package proxy
 
 import (
-	"crypto/tls"
+	"bytes"
+	"config"
 	"fmt"
 	"host"
-	"net"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"path/filepath"
 	"processor"
 	"strings"
 	"time"
-	"utils"
+	"version"
 )
 
 type HttpHandler struct{}
 
-var (
-	///api/song/enhance/player/url
-	///eapi/mlivestream/entrance/playlist/get
-	Path = []string{"/eapi/batch",
-		"/eapi/album/privilege",
-		"/eapi/cloudsearch/pc",
-		"/eapi/playlist/privilege",
-		"/eapi/song/enhance/player/url",
-		"/eapi/v1/playlist/manipulate/tracks", //download music
-
-	}
-)
-
 func InitProxy() {
-	fmt.Println("-------------------Init Proxy-----------------------")
-	//tlsBytes("server.crt", "server.key")
-	go startTlsServer(":443", "./server.crt", "./server.key", &HttpHandler{})
-	startServer(":80", &HttpHandler{})
+	fmt.Println("-------------------Init Proxy-------------------")
+	go startTlsServer("0.0.0.0:443", *config.CertFile, *config.KeyFile, &HttpHandler{})
+	startServer("0.0.0.0:80", &HttpHandler{})
 }
 func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request) {
-	fmt.Println(request.Host)
-	fmt.Println(request.URL.String())
-	fmt.Println(request.RequestURI)
-	if proxyDomain, ok := host.ProxyDomain[request.Host]; ok {
-		scheme := "http://"
-		if request.TLS != nil {
-			scheme = "https://"
+	requestURI := request.RequestURI
+	uriBytes := []byte(requestURI)
+	left := uriBytes[:(len(uriBytes) / 2)]
+	right := uriBytes[len(uriBytes)/2:]
+	scheme := "http://"
+	if request.TLS != nil {
+		scheme = "https://"
+	}
+	if strings.Contains(request.Host, "localhost") || strings.Contains(request.Host, "127.0.0.1") || strings.Contains(request.Host, "0.0.0.0") || (len(requestURI) > 1 && strings.Count(requestURI, "/") > 1 && bytes.EqualFold(left, right)) {
+		//cause infinite loop
+		requestURI = scheme + request.Host
+		if bytes.EqualFold(left, right) {
+			requestURI += string(left)
+		} else {
+			requestURI += string(uriBytes)
 		}
-		requestURI := request.RequestURI
-		request.Header.Del("x-napm-retry")
-		request.Header.Add("X-Real-IP", "118.88.88.88")
+		fmt.Printf("Abandon:%s\n", requestURI)
+		resp.WriteHeader(200)
+		resp.Write([]byte(version.AppVersion()))
+		return
+	}
+	if proxyDomain, ok := host.ProxyDomain[request.Host]; ok && !strings.Contains(requestURI, "stream") {
 		if strings.Contains(requestURI, "http") {
-			requestURI = strings.ReplaceAll(requestURI, scheme+request.Host, "")
+			requestURI = request.URL.Path
 		}
-		remote, err := url.Parse(scheme + proxyDomain + requestURI)
+		urlString := scheme + proxyDomain + requestURI
+		fmt.Printf("Transport:%s(%s)\n", urlString, request.Host)
+		netease := processor.RequestBefore(request)
+		//fmt.Printf("{path:%s,web:%v,encrypted:%v}\n", netease.Path, netease.Web, netease.Encrypted)
+		response, err := processor.Request(request, urlString)
 		if err != nil {
+			fmt.Println("Request error:", urlString)
 			panic(err)
 		}
-		proxy := httputil.NewSingleHostReverseProxy(remote)
-		needTransport := false
-		for _, path := range Path {
-			if strings.Contains(request.RequestURI, path) {
-				needTransport = true
-				break
-			}
+		defer response.Body.Close()
+		processor.RequestAfter(request,response, netease)
+		for name, values := range response.Header {
+			resp.Header()[name] = values
+			//fmt.Println(name,"=",values)
 		}
-		if needTransport && request.Method == http.MethodPost {
-			proxy.Transport = &capturedTransport{}
-			fmt.Printf("Transport:%s(%s)\n", remote, request.Host)
-		} else {
-			proxy.Transport = &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
-				DialContext: (&net.Dialer{
-					Timeout:   30 * time.Second,
-					KeepAlive: 30 * time.Second,
-					DualStack: true,
-				}).DialContext,
-				ForceAttemptHTTP2:     true,
-				MaxIdleConns:          100,
-				IdleConnTimeout:       90 * time.Second,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
-				TLSClientConfig:
-				&tls.Config{ServerName: request.Host},
-			}
-			fmt.Printf("Direct:%s(%s)\n", remote, request.Host)
+		resp.WriteHeader(response.StatusCode)
+		_, err = io.Copy(resp, response.Body)
+		if err != nil {
+			fmt.Println("io.Copy error:", urlString)
+			panic(err)
 		}
-		proxy.ServeHTTP(resp, request)
+		response.Body.Close()
+		//resp.Write(body)
 	} else {
-		scheme := "http://"
-		if request.TLS != nil {
-			scheme = "https://"
+		if strings.Contains(requestURI, "http") {
+			requestURI = request.URL.Path
 		}
-		requestURI := request.RequestURI
-		request.Header.Del("x-napm-retry")
-		request.Header.Add("X-Real-IP", "118.88.88.88")
-		if !strings.Contains(requestURI, "http") {
+		if proxyDomain, ok := host.ProxyDomain[request.Host]; ok {
+			requestURI = scheme + proxyDomain + requestURI
+		} else {
 			requestURI = scheme + request.Host + requestURI
 		}
-		request.Header.Del("x-napm-retry")
-		request.Header.Add("X-Real-IP", "118.88.88.88")
+
 		remote, err := url.Parse(requestURI)
 		if err != nil {
 			panic(err)
@@ -108,32 +91,8 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 	}
 }
 
-type capturedTransport struct {
-	// Uncomment this if you want to capture the transport
-	// CapturedTransport http.RoundTripper
-}
-
-func (t *capturedTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	netease := processor.DecodeRequestBody(request)
-	response, err := http.DefaultTransport.RoundTrip(request)
-	if err != nil {
-		fmt.Println(err)
-		return response, err
-	}
-	processor.DecodeResponseBody(response, netease)
-	return response, err
-}
-
 func startTlsServer(addr, certFile, keyFile string, handler http.Handler) {
 	fmt.Printf("starting TLS Server  %s\n", addr)
-	currentPath, error := utils.GetCurrentPath()
-	if error != nil {
-		fmt.Println(error)
-		currentPath = ""
-	}
-	//fmt.Println(currentPath)
-	certFile, _ = filepath.Abs(currentPath + certFile)
-	keyFile, _ = filepath.Abs(currentPath + keyFile)
 	s := &http.Server{
 		Addr:           addr,
 		Handler:        handler,
