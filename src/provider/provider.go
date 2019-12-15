@@ -10,7 +10,6 @@ import (
 	"provider/kuwo"
 	"strconv"
 	"strings"
-	"sync"
 	"utils"
 )
 
@@ -23,33 +22,17 @@ type Song struct {
 type MapType = map[string]interface{}
 type SliceType = []interface{}
 
-var Cache = new(cache)
-
-type cache struct {
-	sync.RWMutex
-	SongMap map[string]*Song
-}
+var cache = make(map[string]*Song)
 
 func UpdateCacheMd5(songId string, songMd5 string) {
-	Cache.RLock()
-	if Cache.SongMap == nil {
-		Cache.SongMap = make(map[string]*Song)
-	}
-	if song, ok := Cache.SongMap[songId]; ok {
+	if song, ok := cache[songId]; ok {
 		song.Md5 = songMd5
 		//fmt.Println("update cache,songId:", songId, ",md5:", songMd5, utils.ToJson(song))
 	}
-	Cache.RUnlock()
 }
 func Find(id string) Song {
 	fmt.Println("find song info,id:", id)
-	Cache.RLock()
-	defer Cache.RUnlock()
-	if Cache.SongMap == nil {
-		Cache.SongMap = make(map[string]*Song)
-	}
-
-	if song, ok := Cache.SongMap[id]; ok {
+	if song, ok := cache[id]; ok {
 		fmt.Println("hit cache:", utils.ToJson(song))
 		return *song
 	}
@@ -114,12 +97,13 @@ func Find(id string) Song {
 			}
 			modifiedJson["keyword"] = modifiedJson["name"].(string) + " - " + strings.Join(artists, " / ")
 			songUrl := searchSong(modifiedJson)
-			songS := processSong(songUrl)
-			if songS.Size > 0 {
-				//fmt.Println(utils.ToJson(songS))
-				Cache.SongMap[id] = &songS
-				return songS
-
+			if len(songUrl) > 0 {//未版权
+				songS := processSong(songUrl)
+				if songS.Size > 0 {
+					//fmt.Println(utils.ToJson(songS))
+					cache[id] = &songS
+					return songS
+				}
 			}
 			//fmt.Println(utils.ToJson(modifiedJson))
 			return songT

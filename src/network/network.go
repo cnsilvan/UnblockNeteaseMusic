@@ -76,19 +76,6 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 		// verify music.163.com certificate
 		tr.TLSClientConfig.ServerName = request.Host //it doesn't contain any IP SANs
 		// redirect to music.163.com will need verify self
-		//caPool := x509.NewCertPool()
-		////fmt.Println(*config.CertFile)
-		//severCert, err := ioutil.ReadFile(*config.CertFile)
-		//fmt.Println(string(severCert))
-		//if err != nil {
-		//	panic(err)
-		//}
-		//ok := caPool.AppendCertsFromPEM(severCert)
-		//if !ok {
-		//	fmt.Println("caPool.AppendCertsFromPEM error")
-		//}
-		//tr.TLSClientConfig.RootCAs = caPool
-		//tr.TLSClientConfig.
 		if _, ok := host2.ProxyDomain[request.Host]; ok {
 			tr.TLSClientConfig.InsecureSkipVerify = true
 		}

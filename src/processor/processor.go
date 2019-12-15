@@ -356,14 +356,15 @@ func searchGreySong(data MapType, netease *Netease) bool {
 			data["size"] = song.Size
 			data["freeTrialInfo"] = nil
 			data["code"] = 200
-		}
-		if strings.Contains(netease.Path, "download") { //calculate the file md5
-			if !haveSongMd5 {
-				data["md5"] = calculateSongMd5(songId, song.Url)
+			if strings.Contains(netease.Path, "download") { //calculate the file md5
+				if !haveSongMd5 {
+					data["md5"] = calculateSongMd5(songId, song.Url)
+				}
+			} else if !haveSongMd5 {
+				go calculateSongMd5(songId, song.Url)
 			}
-		} else if !haveSongMd5 {
-			go calculateSongMd5(songId, song.Url)
 		}
+
 	}
 	return modified
 }
