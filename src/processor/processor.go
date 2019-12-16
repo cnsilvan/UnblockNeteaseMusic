@@ -64,8 +64,8 @@ type MapType = map[string]interface{}
 type SliceType = []interface{}
 
 func RequestBefore(request *http.Request) *Netease {
-	netease := &Netease{Path: request.RequestURI}
-	if request.Method == http.MethodPost && (strings.Contains(request.RequestURI, "/eapi/") || strings.Contains(request.RequestURI, "/api/linux/forward")) {
+	netease := &Netease{Path: request.URL.Path}
+	if request.Method == http.MethodPost && (strings.Contains(netease.Path, "/eapi/") || strings.Contains(netease.Path, "/api/linux/forward")) {
 		request.Header.Del("x-napm-retry")
 		request.Header.Set("X-Real-IP", "118.66.66.66")
 		requestBody, _ := ioutil.ReadAll(request.Body)
@@ -100,13 +100,13 @@ func RequestBefore(request *http.Request) *Netease {
 			//fmt.Printf("path:%s \nparams:%s\n", netease.Path, netease.Params)
 		}
 
-	} else if strings.Index(request.RequestURI, "/weapi/") == 0 || strings.Index(request.RequestURI, "/api/") == 0 {
+	} else if strings.Index(netease.Path, "/weapi/") == 0 || strings.Index(netease.Path, "/api/") == 0 {
 		request.Header.Set("X-Real-IP", "118.66.66.66")
 		netease.Web = true
 		netease.Path = utils.ReplaceAll(netease.Path, `^\/weapi\/`, "/api/")
 		netease.Path = utils.ReplaceAll(netease.Path, `\?.+$`, "")
 		netease.Path = utils.ReplaceAll(netease.Path, `\/\d*$`, "")
-	} else if strings.Contains(request.RequestURI, "package") {
+	} else if strings.Contains(netease.Path, "package") {
 
 	}
 
@@ -377,12 +377,12 @@ func calculateSongMd5(songId string, songUrl string) string {
 	resp, err := network.Request(&clientRequest)
 	if err != nil {
 		fmt.Println(err)
-		panic(err)
+		return songMd5
 	}
 	body, err := network.GetResponseBody(resp, false)
 	if err != nil {
 		fmt.Println(err)
-		panic(err)
+		return songMd5
 	}
 	h := md5.New()
 	h.Write(body)

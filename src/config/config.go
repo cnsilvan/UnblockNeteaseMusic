@@ -15,7 +15,7 @@ var (
 	Source   = flag.String("o", "kuwo:kugou", "specify server source,such as : \"kuwo:kugou\"")
 	CertFile = flag.String("c", "./server.crt", "specify server cert,such as : \"server.crt\"")
 	KeyFile  = flag.String("k", "./server.key", "specify server cert key ,such as : \"server.key\"")
-	Mode=flag.String("m", "1", "specify running mode ,such as : \"server.key\"")
+	Mode=flag.String("m", "1", "specify running mode（1:hosts） ,such as : \"1\"")
 )
 
 func ValidParams() bool {

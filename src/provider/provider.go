@@ -22,11 +22,12 @@ type Song struct {
 type MapType = map[string]interface{}
 type SliceType = []interface{}
 
-var cache = make(map[string]*Song)
+var cache = make(map[string]Song)
 
 func UpdateCacheMd5(songId string, songMd5 string) {
 	if song, ok := cache[songId]; ok {
 		song.Md5 = songMd5
+		cache[songId] = song
 		//fmt.Println("update cache,songId:", songId, ",md5:", songMd5, utils.ToJson(song))
 	}
 }
@@ -34,7 +35,7 @@ func Find(id string) Song {
 	fmt.Println("find song info,id:", id)
 	if song, ok := cache[id]; ok {
 		fmt.Println("hit cache:", utils.ToJson(song))
-		return *song
+		return song
 	}
 
 	var songT Song
@@ -97,11 +98,11 @@ func Find(id string) Song {
 			}
 			modifiedJson["keyword"] = modifiedJson["name"].(string) + " - " + strings.Join(artists, " / ")
 			songUrl := searchSong(modifiedJson)
-			if len(songUrl) > 0 {//未版权
+			if len(songUrl) > 0 { //未版权
 				songS := processSong(songUrl)
 				if songS.Size > 0 {
 					//fmt.Println(utils.ToJson(songS))
-					cache[id] = &songS
+					cache[id] = songS
 					return songS
 				}
 			}

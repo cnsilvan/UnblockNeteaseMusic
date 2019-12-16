@@ -2,6 +2,7 @@ package host
 
 import (
 	"bufio"
+	"config"
 	"fmt"
 	"io"
 	"net"
@@ -14,8 +15,15 @@ import (
 var (
 	ProxyIp     = "127.0.0.1"
 	ProxyDomain = map[string]string{
-		"music.163.com":            "59.111.181.38",
-		"interface.music.163.com":  "59.111.181.38",
+		"music.163.com":            "59.111.181.35",
+		"interface.music.163.com":  "59.111.181.35",
+		"interface3.music.163.com": "59.111.181.35",
+		"apm.music.163.com":        "59.111.181.35",
+		"apm3.music.163.com":       "59.111.181.35",
+	}
+	HostDomain = map[string]string{
+		"music.163.com":           "59.111.181.35",
+		"interface.music.163.com": "59.111.181.35",
 	}
 	//ProxyDomain = map[string]string{
 	//	"music.163.com":            "59.111.181.35",
@@ -68,7 +76,7 @@ func restoreHost(hostPath string) error {
 }
 func appendToHost(hostPath string) error {
 	content := " \n# UnblockNetEaseMusic（Go）\n"
-	for domain, _ := range ProxyDomain {
+	for domain, _ := range HostDomain {
 		content += ProxyIp + " " + domain + "\n"
 	}
 	return appendToFile(hostPath, content)
@@ -172,7 +180,7 @@ func resolveIp(domain string) (ip string, err error) {
 	return "", nil
 }
 func resolveIps() error {
-	for domain, _ := range ProxyDomain {
+	for domain, _ := range HostDomain {
 		rAddr, err := net.ResolveIPAddr("ip", domain)
 		if err != nil {
 			fmt.Printf("Fail to resolve %s, %s\n", domain, err)
@@ -182,7 +190,7 @@ func resolveIps() error {
 			fmt.Printf("Fail to resolve %s,IP nil\n", domain)
 			return fmt.Errorf("Fail to resolve  %s,Ip length==0 \n", domain)
 		}
-		ProxyDomain[domain] = rAddr.IP.String()
+		HostDomain[domain] = rAddr.IP.String()
 
 	}
 	return nil
@@ -203,30 +211,40 @@ func getHostsPath() (string, error) {
 }
 func InitHosts() error {
 	fmt.Println("-------------------Init Host-------------------")
-	hostsPath, err := getHostsPath()
-	if err == nil {
-		containsProxyDomain := false
-		containsProxyDomain, err = backupHost(hostsPath)
+	if *config.Mode == "1" { //hosts mode
+		hostsPath, err := getHostsPath()
 		if err == nil {
-			if containsProxyDomain {
-				if err = excludeRelatedHost(hostsPath); err == nil {
+			containsProxyDomain := false
+			containsProxyDomain, err = backupHost(hostsPath)
+			if err == nil {
+				if containsProxyDomain {
+					if err = excludeRelatedHost(hostsPath); err == nil {
+						err = resolveIps()
+						if err != nil {
+							return err
+						}
+						fmt.Println("HostDomain:", HostDomain)
+					}
+				} else {
 					err = resolveIps()
 					if err != nil {
 						return err
 					}
-					fmt.Println("ProxyDomain:", ProxyDomain)
+					fmt.Println("HostDomain:", HostDomain)
 				}
-			} else {
-				err = resolveIps()
-				if err != nil {
-					return err
-				}
-				fmt.Println("ProxyDomain:", ProxyDomain)
-			}
-			if err = appendToHost(hostsPath); err == nil {
+				if err = appendToHost(hostsPath); err == nil {
 
+				}
 			}
 		}
+		return err
+	} else {
+		err := resolveIps()
+		if err != nil {
+			return err
+		}
+		fmt.Println("HostDomain:", HostDomain)
+		return err
 	}
-	return err
+
 }
