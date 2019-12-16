@@ -50,6 +50,7 @@ var (
 		"/api/v1/radio/get":                  1,
 		"/api/v1/discovery/recommend/songs":  1,
 		"/api/cloudsearch/get/web":           1,
+		"/api/song/enhance/privilege":        1,
 	}
 )
 
