@@ -40,4 +40,4 @@ sudo ./UnblockNeteaseMusic
 本应用获取music.163.com的IP是通过本机直接查询，非nodejs版本请求music.httpdns.c.163.com获取
 
 # 感谢
-[NodeJs版本](https://github.com/nondanee/UnblockNeteaseMusic)以及为该项目付出的所有人
+[NodeJs版本](https://github.com/nondanee/UnblockNeteaseMusic)以及为它贡献的所有coder
