@@ -1,15 +1,15 @@
 package provider
 
 import (
-	"bytes"
-	"fmt"
 	"UnblockNeteaseMusic/host"
-	"net/http"
 	"UnblockNeteaseMusic/network"
 	"UnblockNeteaseMusic/provider/kuwo"
+	"UnblockNeteaseMusic/utils"
+	"bytes"
+	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
-	"UnblockNeteaseMusic/utils"
 )
 
 type Song struct {
@@ -95,7 +95,7 @@ func Find(id string) Song {
 				modifiedJson["name"] = utils.ReplaceAll(modifiedJson["name"].(string), `\s*cover[:：\s][^）]+）`, "")
 				modifiedJson["name"] = utils.ReplaceAll(modifiedJson["name"].(string), `\(\s*cover[:：\s][^\)]+\)`, "")
 			}
-			modifiedJson["keyword"] = modifiedJson["name"].(string) + " - " + strings.Join(artists, " / ")
+			modifiedJson["keyword"] = modifiedJson["name"].(string) + " " + strings.Join(artists, " / ")
 			songUrl := searchSong(modifiedJson)
 			if len(songUrl) > 0 { //未版权
 				songS := processSong(songUrl)
