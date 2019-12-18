@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
@@ -8,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"host"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"network"
@@ -380,13 +382,13 @@ func calculateSongMd5(songId string, songUrl string) string {
 		fmt.Println(err)
 		return songMd5
 	}
-	body, err := network.GetResponseBody(resp, false)
+	r := bufio.NewReader(resp.Body)
+	h := md5.New()
+	_, err = io.Copy(h, r)
 	if err != nil {
 		fmt.Println(err)
 		return songMd5
 	}
-	h := md5.New()
-	h.Write(body)
 	songMd5 = hex.EncodeToString(h.Sum(nil))
 	provider.UpdateCacheMd5(songId, songMd5)
 	//fmt.Println("calculateSongMd5 songId:", songId, ",songUrl:", songUrl, ",md5:", songMd5)
