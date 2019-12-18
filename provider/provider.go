@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"UnblockNeteaseMusic/common"
 	"UnblockNeteaseMusic/host"
 	"UnblockNeteaseMusic/network"
 	"UnblockNeteaseMusic/provider/kuwo"
@@ -12,16 +13,8 @@ import (
 	"strings"
 )
 
-type Song struct {
-	Size int64
-	Br   int
-	Url  string
-	Md5  string
-}
-type MapType = map[string]interface{}
-type SliceType = []interface{}
 
-var cache = make(map[string]Song)
+var cache = make(map[string]common.Song)
 
 func UpdateCacheMd5(songId string, songMd5 string) {
 	if song, ok := cache[songId]; ok {
@@ -30,14 +23,14 @@ func UpdateCacheMd5(songId string, songMd5 string) {
 		//fmt.Println("update cache,songId:", songId, ",md5:", songMd5, utils.ToJson(song))
 	}
 }
-func Find(id string) Song {
+func Find(id string) common.Song {
 	fmt.Println("find song info,id:", id)
 	if song, ok := cache[id]; ok {
 		fmt.Println("hit cache:", utils.ToJson(song))
 		return song
 	}
 
-	var songT Song
+	var songT common.Song
 	clientRequest := network.ClientRequest{
 		Method:    http.MethodGet,
 		RemoteUrl: "https://" + host.ProxyDomain["music.163.com"] + "/api/song/detail?ids=[" + id + "]",
@@ -56,47 +49,47 @@ func Find(id string) Song {
 			fmt.Println("GetResponseBody fail")
 			return songT
 		}
-		var oJson MapType
+		var oJson common.MapType
 		d := utils.JSON.NewDecoder(bytes.NewReader(body))
 		d.UseNumber()
 		d.Decode(&oJson)
 		if oJson["songs"] != nil {
-			song := oJson["songs"].(SliceType)[0]
-			var modifiedJson = make(MapType, 6)
+			song := oJson["songs"].(common.SliceType)[0]
+			var searchSong = make(common.MapType, 6)
 			var artists []string
 			switch song.(type) {
-			case MapType:
-				modifiedJson["id"] = song.(MapType)["id"]
-				modifiedJson["name"] = song.(MapType)["name"]
-				modifiedJson["alias"] = song.(MapType)["alias"]
-				modifiedJson["duration"] = song.(MapType)["duration"]
-				modifiedJson["album"] = make(MapType, 2)
-				modifiedJson["album"].(MapType)["id"] = song.(MapType)["album"].(MapType)["id"]
-				modifiedJson["album"].(MapType)["name"] = song.(MapType)["album"].(MapType)["name"]
-				switch song.(MapType)["artists"].(type) {
-				case SliceType:
-					length := len(song.(MapType)["artists"].(SliceType))
-					modifiedJson["artists"] = make(SliceType, length)
+			case common.MapType:
+				searchSong["id"] = song.(common.MapType)["id"]
+				searchSong["name"] = song.(common.MapType)["name"]
+				searchSong["alias"] = song.(common.MapType)["alias"]
+				searchSong["duration"] = song.(common.MapType)["duration"]
+				searchSong["album"] = make(common.MapType, 2)
+				searchSong["album"].(common.MapType)["id"] = song.(common.MapType)["album"].(common.MapType)["id"]
+				searchSong["album"].(common.MapType)["name"] = song.(common.MapType)["album"].(common.MapType)["name"]
+				switch song.(common.MapType)["artists"].(type) {
+				case common.SliceType:
+					length := len(song.(common.MapType)["artists"].(common.SliceType))
+					searchSong["artists"] = make(common.SliceType, length)
 					artists = make([]string, length)
-					for index, value := range song.(MapType)["artists"].(SliceType) {
-						if modifiedJson["artists"].(SliceType)[index] == nil {
-							modifiedJson["artists"].(SliceType)[index] = make(MapType, 2)
+					for index, value := range song.(common.MapType)["artists"].(common.SliceType) {
+						if searchSong["artists"].(common.SliceType)[index] == nil {
+							searchSong["artists"].(common.SliceType)[index] = make(common.MapType, 2)
 						}
-						modifiedJson["artists"].(SliceType)[index].(MapType)["id"] = value.(MapType)["id"]
-						modifiedJson["artists"].(SliceType)[index].(MapType)["name"] = value.(MapType)["name"]
-						artists[index] = value.(MapType)["name"].(string)
+						searchSong["artists"].(common.SliceType)[index].(common.MapType)["id"] = value.(common.MapType)["id"]
+						searchSong["artists"].(common.SliceType)[index].(common.MapType)["name"] = value.(common.MapType)["name"]
+						artists[index] = value.(common.MapType)["name"].(string)
 					}
 
 				}
 			default:
 
 			}
-			if modifiedJson["name"] != nil {
-				modifiedJson["name"] = utils.ReplaceAll(modifiedJson["name"].(string), `\s*cover[:：\s][^）]+）`, "")
-				modifiedJson["name"] = utils.ReplaceAll(modifiedJson["name"].(string), `\(\s*cover[:：\s][^\)]+\)`, "")
+			if searchSong["name"] != nil {
+				searchSong["name"] = utils.ReplaceAll(searchSong["name"].(string), `\s*cover[:：\s][^）]+）`, "")
+				searchSong["name"] = utils.ReplaceAll(searchSong["name"].(string), `\(\s*cover[:：\s][^\)]+\)`, "")
 			}
-			modifiedJson["keyword"] = modifiedJson["name"].(string) + " " + strings.Join(artists, " / ")
-			songUrl := searchSong(modifiedJson)
+			searchSong["keyword"] = searchSong["name"].(string) + " " + strings.Join(artists, " / ")
+			songUrl := searchSongFn(searchSong)
 			if len(songUrl) > 0 { //未版权
 				songS := processSong(songUrl)
 				if songS.Size > 0 {
@@ -115,13 +108,13 @@ func Find(id string) Song {
 	}
 
 }
-func searchSong(key MapType) string {
+func searchSongFn(key common.MapType) string {
 	//cache after
-	return kuwo.SearchSong(key)
+	return kuwo.SearchSong(key).Url
 
 }
-func processSong(songUrl string) Song {
-	var song Song
+func processSong(songUrl string) common.Song {
+	var song common.Song
 	if len(songUrl) > 0 {
 		header := make(http.Header, 1)
 		header["range"] = append(header["range"], "bytes=0-8191")

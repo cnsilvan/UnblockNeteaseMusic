@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"UnblockNeteaseMusic/common"
 	"UnblockNeteaseMusic/host"
 	"UnblockNeteaseMusic/network"
 	"UnblockNeteaseMusic/processor/crypto"
@@ -63,8 +64,6 @@ type Netease struct {
 	Web       bool
 	Encrypted bool
 }
-type MapType = map[string]interface{}
-type SliceType = []interface{}
 
 func RequestBefore(request *http.Request) *Netease {
 	netease := &Netease{Path: request.URL.Path}
@@ -82,12 +81,12 @@ func RequestBefore(request *http.Request) *Netease {
 			requestBodyH := make([]byte, len(requestBody))
 			length, _ := hex.Decode(requestBodyH, requestBody[8:len(requestBody)-len(pad)])
 			decryptECBBytes, _ := crypto.AesDecryptECB(requestBodyH[:length], []byte(linuxApiKey))
-			var result MapType
+			var result common.MapType
 			d := utils.JSON.NewDecoder(bytes.NewReader(decryptECBBytes))
 			d.UseNumber()
 			d.Decode(&result)
-			if utils.Exist("url", result) && utils.Exist("path", result["url"].(MapType)) {
-				netease.Path = result["url"].(MapType)["path"].(string)
+			if utils.Exist("url", result) && utils.Exist("path", result["url"].(common.MapType)) {
+				netease.Path = result["url"].(common.MapType)["path"].(string)
 			}
 			netease.Params = utils.ParseJson(bytes.NewBufferString(result["params"].(string)).Bytes())
 			fmt.Println("forward")
@@ -198,13 +197,13 @@ func tryCollect(netease *Netease, request *http.Request) bool {
 		trackId := ""
 		switch netease.Params["trackIds"].(type) {
 		case string:
-			var result SliceType
+			var result common.SliceType
 			d := utils.JSON.NewDecoder(bytes.NewReader(bytes.NewBufferString(netease.Params["trackIds"].(string)).Bytes()))
 			d.UseNumber()
 			d.Decode(&result)
 			trackId = result[0].(string)
-		case SliceType:
-			trackId = netease.Params["trackIds"].(SliceType)[0].(json.Number).String()
+		case common.SliceType:
+			trackId = netease.Params["trackIds"].(common.SliceType)[0].(json.Number).String()
 		}
 		pid := netease.Params["pid"].(string)
 		op := netease.Params["op"].(string)
@@ -249,8 +248,8 @@ func tryLike(netease *Netease, request *http.Request) bool {
 			return modified
 		}
 		jsonBody := utils.ParseJson(body)
-		if utils.Exist("userPoint", jsonBody) && utils.Exist("userId", jsonBody["userPoint"].(MapType)) {
-			userId := jsonBody["userPoint"].(MapType)["userId"].(json.Number).String()
+		if utils.Exist("userPoint", jsonBody) && utils.Exist("userId", jsonBody["userPoint"].(common.MapType)) {
+			userId := jsonBody["userPoint"].(common.MapType)["userId"].(json.Number).String()
 			clientRequest.RemoteUrl = "http://" + proxyRemoteHost + "/api/user/playlist?uid=" + userId + "&limit=1"
 			resp, err = network.Request(&clientRequest)
 			if err != nil {
@@ -262,7 +261,7 @@ func tryLike(netease *Netease, request *http.Request) bool {
 			}
 			jsonBody = utils.ParseJson(body)
 			if utils.Exist("playlist", jsonBody) {
-				pid := jsonBody["playlist"].(SliceType)[0].(MapType)["id"].(json.Number).String()
+				pid := jsonBody["playlist"].(common.SliceType)[0].(common.MapType)["id"].(json.Number).String()
 				clientRequest.Method = http.MethodPost
 				clientRequest.RemoteUrl = "http://" + proxyRemoteHost + "/api/playlist/manipulate/tracks"
 				clientRequest.Body = ioutil.NopCloser(bytes.NewBufferString("trackIds=[" + trackId + "," + trackId + "]&pid=" + pid + "&op=add"))
@@ -277,7 +276,7 @@ func tryLike(netease *Netease, request *http.Request) bool {
 				jsonBody = utils.ParseJson(body)
 				code := jsonBody["code"].(json.Number).String()
 				if code == "200" || code == "502" {
-					netease.JsonBody = make(MapType)
+					netease.JsonBody = make(common.MapType)
 					netease.JsonBody["code"] = 200
 					netease.JsonBody["playlistId"] = pid
 					modified = true
@@ -294,19 +293,19 @@ func tryMatch(netease *Netease) bool {
 	jsonBody := netease.JsonBody
 	if value, ok := jsonBody["data"]; ok {
 		switch value.(type) {
-		case SliceType:
+		case common.SliceType:
 			if strings.Contains(netease.Path, "download") {
-				for index, data := range value.(SliceType) {
+				for index, data := range value.(common.SliceType) {
 					if index == 0 {
-						modified = searchGreySong(data.(MapType), netease) || modified
+						modified = searchGreySong(data.(common.MapType), netease) || modified
 						break
 					}
 				}
 			} else {
-				modified = searchGreySongs(value.(SliceType), netease) || modified
+				modified = searchGreySongs(value.(common.SliceType), netease) || modified
 			}
-		case MapType:
-			modified = searchGreySong(value.(MapType), netease) || modified
+		case common.MapType:
+			modified = searchGreySong(value.(common.MapType), netease) || modified
 		default:
 		}
 	}
@@ -314,17 +313,17 @@ func tryMatch(netease *Netease) bool {
 	//fmt.Println(string(modifiedJson))
 	return modified
 }
-func searchGreySongs(data SliceType, netease *Netease) bool {
+func searchGreySongs(data common.SliceType, netease *Netease) bool {
 	modified := false
 	for _, value := range data {
 		switch value.(type) {
-		case MapType:
-			modified = searchGreySong(value.(MapType), netease) || modified
+		case common.MapType:
+			modified = searchGreySong(value.(common.MapType), netease) || modified
 		}
 	}
 	return modified
 }
-func searchGreySong(data MapType, netease *Netease) bool {
+func searchGreySong(data common.MapType, netease *Netease) bool {
 	modified := false
 	if data["url"] == nil {
 		data["flag"] = 0
@@ -394,15 +393,15 @@ func calculateSongMd5(songId string, songUrl string) string {
 	//fmt.Println("calculateSongMd5 songId:", songId, ",songUrl:", songUrl, ",md5:", songMd5)
 	return songMd5
 }
-func processSliceJson(jsonSlice SliceType) bool {
+func processSliceJson(jsonSlice common.SliceType) bool {
 	needModify := false
 	for _, value := range jsonSlice {
 		switch value.(type) {
-		case MapType:
-			needModify = processMapJson(value.(MapType)) || needModify
+		case common.MapType:
+			needModify = processMapJson(value.(common.MapType)) || needModify
 
-		case SliceType:
-			needModify = processSliceJson(value.(SliceType)) || needModify
+		case common.SliceType:
+			needModify = processSliceJson(value.(common.SliceType)) || needModify
 
 		default:
 			//fmt.Printf("index(%T):%v\n", index, index)
@@ -411,7 +410,7 @@ func processSliceJson(jsonSlice SliceType) bool {
 	}
 	return needModify
 }
-func processMapJson(jsonMap MapType) bool {
+func processMapJson(jsonMap common.MapType) bool {
 	needModify := false
 	if utils.Exists([]string{"st", "subp", "pl", "dl"}, jsonMap) {
 		if v, _ := jsonMap["st"]; v.(json.Number).String() != "0" {
@@ -434,10 +433,10 @@ func processMapJson(jsonMap MapType) bool {
 	}
 	for _, value := range jsonMap {
 		switch value.(type) {
-		case MapType:
-			needModify = processMapJson(value.(MapType)) || needModify
-		case SliceType:
-			needModify = processSliceJson(value.(SliceType)) || needModify
+		case common.MapType:
+			needModify = processMapJson(value.(common.MapType)) || needModify
+		case common.SliceType:
+			needModify = processSliceJson(value.(common.SliceType)) || needModify
 		default:
 			//if key == "fee" && value.(json.Number).String() != "0" {
 			//	jsonMap[key] = 0

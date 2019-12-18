@@ -1,6 +1,7 @@
 package kuwo
 
 import (
+	"UnblockNeteaseMusic/common"
 	"UnblockNeteaseMusic/network"
 	"UnblockNeteaseMusic/utils"
 	"fmt"
@@ -9,7 +10,10 @@ import (
 	"strings"
 )
 
-func SearchSong(key map[string]interface{}) string {
+func SearchSong(key common.MapType) common.SearchSong {
+	searchSong := common.SearchSong{
+
+	}
 	keyword := key["keyword"].(string)
 	token := getToken(keyword)
 	header := make(http.Header, 3)
@@ -26,22 +30,30 @@ func SearchSong(key map[string]interface{}) string {
 	resp, err := network.Request(&clientRequest)
 	if err != nil {
 		fmt.Println(err)
-		return ""
+		return searchSong
 	}
 	body, err := network.GetResponseBody(resp, false)
 	if err != nil {
 		fmt.Println(err)
-		return ""
+		return searchSong
 	}
 	result := utils.ParseJson(body)
+	//fmt.Println(utils.ToJson(result))
 	var musicId = ""
-	if result["data"] != nil && result["data"].(map[string]interface{}) != nil && len(result["data"].(map[string]interface{})["list"].([]interface{})) > 0 {
-		matched := result["data"].(map[string]interface{})["list"].([]interface{})[0]
-		if matched != nil && matched.(map[string]interface{})["musicrid"] != nil {
-			musicrid := matched.(map[string]interface{})["musicrid"].(string)
-			musicSlice := strings.Split(musicrid, "_")
-			musicId = musicSlice[len(musicSlice)-1]
+	if result["data"] != nil && result["data"].(common.MapType) != nil && len(result["data"].(common.MapType)["list"].([]interface{})) > 0 {
+		for _, matched := range result["data"].(common.MapType)["list"].([]interface{}) {
+			if matched != nil && matched.(common.MapType)["musicrid"] != nil && strings.Contains(keyword, matched.(common.MapType)["artist"].(string)) {
+				musicrid := matched.(common.MapType)["musicrid"].(string)
+				musicSlice := strings.Split(musicrid, "_")
+				musicId = musicSlice[len(musicSlice)-1]
+				searchSong.Artist = matched.(common.MapType)["artist"].(string)
+				searchSong.Name = matched.(common.MapType)["name"].(string)
+				fmt.Println(utils.ToJson(matched))
+				break
+				//songName:=matched.(common.MapType)["name"].(string)
+			}
 		}
+
 	}
 	if len(musicId) > 0 {
 		clientRequest := network.ClientRequest{
@@ -54,16 +66,17 @@ func SearchSong(key map[string]interface{}) string {
 		resp, err := network.Request(&clientRequest)
 		if err != nil {
 			fmt.Println(err)
-			return ""
+			return searchSong
 		}
 		body, err = network.GetResponseBody(resp, false)
 		address := string(body)
 		if strings.Index(address, "http") == 0 {
-			return address
+			searchSong.Url = address
+			return searchSong
 		}
 
 	}
-	return ""
+	return searchSong
 
 }
 func getToken(keyword string) string {
