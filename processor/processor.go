@@ -1,6 +1,11 @@
 package processor
 
 import (
+	"UnblockNeteaseMusic/host"
+	"UnblockNeteaseMusic/network"
+	"UnblockNeteaseMusic/processor/crypto"
+	"UnblockNeteaseMusic/provider"
+	"UnblockNeteaseMusic/utils"
 	"bufio"
 	"bytes"
 	"compress/gzip"
@@ -8,16 +13,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"UnblockNeteaseMusic/host"
 	"io"
 	"io/ioutil"
 	"net/http"
-	"UnblockNeteaseMusic/network"
-	"UnblockNeteaseMusic/processor/crypto"
-	"UnblockNeteaseMusic/provider"
 	"regexp"
 	"strings"
-	"UnblockNeteaseMusic/utils"
 )
 
 var (

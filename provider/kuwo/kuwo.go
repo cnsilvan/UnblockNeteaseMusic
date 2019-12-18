@@ -1,12 +1,12 @@
 package kuwo
 
 import (
+	"UnblockNeteaseMusic/network"
+	"UnblockNeteaseMusic/utils"
 	"fmt"
 	"net/http"
 	"net/url"
-	"UnblockNeteaseMusic/network"
 	"strings"
-	"UnblockNeteaseMusic/utils"
 )
 
 func SearchSong(key map[string]interface{}) string {

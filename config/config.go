@@ -1,12 +1,12 @@
 package config
 
 import (
+	"UnblockNeteaseMusic/utils"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"UnblockNeteaseMusic/utils"
 )
 
 var (
@@ -27,18 +27,11 @@ func ValidParams() bool {
 			fmt.Printf("arg[%d]=%s\n", i, flag.Arg(i))
 		}
 	}
-
-	//fmt.Println("--------------------Port------------------------")
-
-	//fmt.Println("--------------------Source------------------------")
 	sources := strings.Split(*Source, ":")
 	if len(sources) < 1 {
 		fmt.Printf("source param invalid: %v \n", *Source)
 		return false
 	}
-	//for _, p := range sources {
-	//	fmt.Println(p)
-	//}
 	currentPath, error := utils.GetCurrentPath()
 	if error != nil {
 		fmt.Println(error)

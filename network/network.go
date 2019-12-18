@@ -1,11 +1,11 @@
 package network
 
 import (
+	host2 "UnblockNeteaseMusic/host"
 	"bytes"
 	"compress/gzip"
 	"crypto/tls"
 	"fmt"
-	host2 "UnblockNeteaseMusic/host"
 	"io"
 	"io/ioutil"
 	"net"

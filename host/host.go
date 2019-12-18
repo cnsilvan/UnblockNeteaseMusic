@@ -1,8 +1,8 @@
 package host
 
 import (
-	"bufio"
 	"UnblockNeteaseMusic/config"
+	"bufio"
 	"fmt"
 	"io"
 	"net"
