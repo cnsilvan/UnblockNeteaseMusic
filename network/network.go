@@ -20,12 +20,14 @@ type Netease struct {
 	JsonBody map[string]interface{}
 }
 type ClientRequest struct {
-	Method    string
-	RemoteUrl string
-	Host      string
-	Header    http.Header
-	Body      io.Reader
-	Proxy     bool
+	Method               string
+	RemoteUrl            string
+	Host                 string
+	ForbiddenEncodeQuery bool
+	Header               http.Header
+	Body                 io.Reader
+	Cookies              []*http.Cookie
+	Proxy                bool
 }
 
 func Request(clientRequest *ClientRequest) (*http.Response, error) {
@@ -36,15 +38,21 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 	header := clientRequest.Header
 	body := clientRequest.Body
 	proxy := clientRequest.Proxy
+	cookies := clientRequest.Cookies
 	var resp *http.Response
 	request, err := http.NewRequest(method, remoteUrl, body)
 	if err != nil {
 		fmt.Printf("NewRequest fail:%v\n", err)
 		return resp, nil
 	}
-	request.URL.RawQuery = request.URL.Query().Encode()
+	if !clientRequest.ForbiddenEncodeQuery {
+		request.URL.RawQuery = request.URL.Query().Encode()
+	}
 	if header != nil {
 		request.Header = header
+	}
+	for _, value := range cookies {
+		request.AddCookie(value)
 	}
 	c := http.Client{}
 	tr := http.Transport{
@@ -90,6 +98,8 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 
 	}
 	resp, err = c.Do(request)
+	//fmt.Println(request.URL.String())
+	//fmt.Println(request.Cookies())
 	if err != nil {
 		fmt.Println(request.Method, request.URL.String(), host)
 		fmt.Printf("http.Client.Do fail:%v\n", err)

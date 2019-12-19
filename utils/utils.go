@@ -2,6 +2,8 @@ package utils
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/json-iterator/go"
@@ -70,4 +72,9 @@ func GetCurrentPath() (string, error) {
 		return "", errors.New(`error: Can't find "/" or "\".`)
 	}
 	return string(path[0 : i+1]), nil
+}
+func MD5(data []byte) string {
+	h := md5.New()
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
 }

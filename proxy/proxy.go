@@ -170,16 +170,16 @@ func proxyConnectLocalhost(rw http.ResponseWriter, req *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	localUrl := "localhost"
+	localUrl := "localhost:"
 	var server net.Conn
-	if req.URL.Port() == "80" {
-		localUrl = localUrl + ":80"
-		server, err = net.Dial("tcp", localUrl)
-	} else {
-		localUrl = localUrl + ":443"
+	port := req.URL.Port()
+	if port == "80" || port == strconv.Itoa(*config.Port) {
+		localUrl = localUrl + strconv.Itoa(*config.Port)
+		server, err = net.DialTimeout("tcp", localUrl, 15*time.Second)
+	} else if port == "443" || port == strconv.Itoa(*config.TLSPort) {
+		localUrl = localUrl + strconv.Itoa(*config.TLSPort)
 		server, err = tls.Dial("tcp", localUrl, &tls.Config{InsecureSkipVerify: true})
 	}
-
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -187,6 +187,8 @@ func proxyConnectLocalhost(rw http.ResponseWriter, req *http.Request) {
 	client.Write([]byte("HTTP/1.0 200 Connection Established\r\n\r\n"))
 	go io.Copy(server, client)
 	io.Copy(client, server)
+	defer client.Close()
+	defer server.Close()
 }
 func proxyConnect(rw http.ResponseWriter, req *http.Request) {
 	fmt.Printf("Received request %s %s %s\n",
@@ -209,7 +211,7 @@ func proxyConnect(rw http.ResponseWriter, req *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	server, err := net.Dial("tcp", host)
+	server, err := net.DialTimeout("tcp", host, 15*time.Second)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -217,6 +219,8 @@ func proxyConnect(rw http.ResponseWriter, req *http.Request) {
 	client.Write([]byte("HTTP/1.0 200 Connection Established\r\n\r\n"))
 	go io.Copy(server, client)
 	io.Copy(client, server)
+	defer client.Close()
+	defer server.Close()
 }
 func startTlsServer(addr, certFile, keyFile string, handler http.Handler) {
 	fmt.Printf("starting TLS Server  %s\n", addr)

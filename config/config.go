@@ -39,7 +39,7 @@ func ValidParams() bool {
 	}
 	//fmt.Println(currentPath)
 	certFile, _ := filepath.Abs(*CertFile)
-	keyFile, _ := filepath.Abs(currentPath + *KeyFile)
+	keyFile, _ := filepath.Abs(*KeyFile)
 	_, err := os.Open(certFile)
 	if err != nil {
 		certFile, _ = filepath.Abs(currentPath + *CertFile)

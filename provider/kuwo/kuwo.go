@@ -10,9 +10,8 @@ import (
 	"strings"
 )
 
-func SearchSong(key common.MapType) common.SearchSong {
-	searchSong := common.SearchSong{
-
+func SearchSong(key common.MapType) common.Song {
+	searchSong := common.Song{
 	}
 	keyword := key["keyword"].(string)
 	token := getToken(keyword)
@@ -48,7 +47,7 @@ func SearchSong(key common.MapType) common.SearchSong {
 				musicId = musicSlice[len(musicSlice)-1]
 				searchSong.Artist = matched.(common.MapType)["artist"].(string)
 				searchSong.Name = matched.(common.MapType)["name"].(string)
-				fmt.Println(utils.ToJson(matched))
+				//fmt.Println(utils.ToJson(matched))
 				break
 				//songName:=matched.(common.MapType)["name"].(string)
 			}

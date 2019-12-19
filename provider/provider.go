@@ -6,13 +6,11 @@ import (
 	"UnblockNeteaseMusic/network"
 	"UnblockNeteaseMusic/provider/kuwo"
 	"UnblockNeteaseMusic/utils"
-	"bytes"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 )
-
 
 var cache = make(map[string]common.Song)
 
@@ -25,10 +23,10 @@ func UpdateCacheMd5(songId string, songMd5 string) {
 }
 func Find(id string) common.Song {
 	fmt.Println("find song info,id:", id)
-	if song, ok := cache[id]; ok {
-		fmt.Println("hit cache:", utils.ToJson(song))
-		return song
-	}
+	//if song, ok := cache[id]; ok {
+	//	fmt.Println("hit cache:", utils.ToJson(song))
+	//	return song
+	//}
 
 	var songT common.Song
 	clientRequest := network.ClientRequest{
@@ -49,10 +47,7 @@ func Find(id string) common.Song {
 			fmt.Println("GetResponseBody fail")
 			return songT
 		}
-		var oJson common.MapType
-		d := utils.JSON.NewDecoder(bytes.NewReader(body))
-		d.UseNumber()
-		d.Decode(&oJson)
+		oJson := utils.ParseJson(body)
 		if oJson["songs"] != nil {
 			song := oJson["songs"].(common.SliceType)[0]
 			var searchSong = make(common.MapType, 6)
@@ -90,10 +85,13 @@ func Find(id string) common.Song {
 			}
 			searchSong["keyword"] = searchSong["name"].(string) + " " + strings.Join(artists, " / ")
 			songUrl := searchSongFn(searchSong)
-			if len(songUrl) > 0 { //未版权
+			if len(songUrl.Url) > 0 { //未版权
 				songS := processSong(songUrl)
 				if songS.Size > 0 {
 					//fmt.Println(utils.ToJson(songS))
+					if s, ok := cache[id]; ok && len(s.Md5) > 0 {
+						songS.Md5 = s.Md5
+					}
 					cache[id] = songS
 					return songS
 				}
@@ -108,19 +106,25 @@ func Find(id string) common.Song {
 	}
 
 }
-func searchSongFn(key common.MapType) string {
+func searchSongFn(key common.MapType) common.Song {
 	//cache after
-	return kuwo.SearchSong(key).Url
+	//kugou.SearchSong(key)
+	return kuwo.SearchSong(key)
 
 }
-func processSong(songUrl string) common.Song {
-	var song common.Song
-	if len(songUrl) > 0 {
+func processSong(song common.Song) common.Song {
+	if len(song.Url) > 0 {
+		if len(song.Md5) > 0 && song.Br > 0 && song.Size > 0 {
+			return song
+		}
+		if song.Br > 0 && song.Size > 0 && !strings.Contains(song.Url, "qq.com") && !strings.Contains(song.Url, "xiami.net") && !strings.Contains(song.Url, "qianqian.com") {
+			return song
+		}
 		header := make(http.Header, 1)
 		header["range"] = append(header["range"], "bytes=0-8191")
 		clientRequest := network.ClientRequest{
 			Method:    http.MethodGet,
-			RemoteUrl: songUrl,
+			RemoteUrl: song.Url,
 			Header:    header,
 			Proxy:     false,
 		}
@@ -130,38 +134,40 @@ func processSong(songUrl string) common.Song {
 			return song
 		}
 		if resp.StatusCode > 199 && resp.StatusCode < 300 {
-			if strings.Contains(songUrl, "qq.com") {
+			if strings.Contains(song.Url, "qq.com") {
 				song.Md5 = resp.Header.Get("server-md5")
-			} else if strings.Contains(songUrl, "xiami.net") || strings.Contains(songUrl, "qianqian.com") {
+			} else if strings.Contains(song.Url, "xiami.net") || strings.Contains(song.Url, "qianqian.com") {
 				song.Md5 = strings.ToLower(utils.ReplaceAll(resp.Header.Get("etag"), `/"/g`, ""))
 				//.replace(/"/g, '').toLowerCase()
 			}
-			size := resp.Header.Get("content-range")
-			if len(size) > 0 {
-				sizeSlice := strings.Split(size, "/")
-				if len(sizeSlice) > 0 {
-					size = sizeSlice[len(sizeSlice)-1]
+			if song.Size == 0 {
+				size := resp.Header.Get("content-range")
+				if len(size) > 0 {
+					sizeSlice := strings.Split(size, "/")
+					if len(sizeSlice) > 0 {
+						size = sizeSlice[len(sizeSlice)-1]
+					}
+				} else {
+					size = resp.Header.Get("content-length")
+					if len(size) < 1 {
+						size = "0"
+					}
 				}
-			} else {
-				size = resp.Header.Get("content-length")
-				if len(size) < 1 {
-					size = "0"
+				song.Size, _ = strconv.ParseInt(size, 10, 64)
+			}
+			if song.Br == 0 {
+				if resp.Header.Get("content-length") == "8192" {
+					body, err := network.GetResponseBody(resp, false)
+					if err != nil {
+						fmt.Println("song GetResponseBody error:", err)
+						return song
+					}
+					bitrate := decodeBitrate(body)
+					if bitrate > 0 && bitrate < 500 {
+						song.Br = bitrate * 1000
+					}
 				}
 			}
-			song.Size, _ = strconv.ParseInt(size, 10, 64)
-			song.Url = songUrl
-			if resp.Header.Get("content-length") == "8192" {
-				body, err := network.GetResponseBody(resp, false)
-				if err != nil {
-					fmt.Println("song GetResponseBody error:", err)
-					return song
-				}
-				bitrate := decodeBitrate(body)
-				if bitrate > 0 && bitrate < 500 {
-					song.Br = bitrate * 1000
-				}
-			}
-			//song.url = response.url.href
 		}
 	}
 	return song

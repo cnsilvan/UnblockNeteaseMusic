@@ -168,7 +168,7 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				response.Header.Del("content-encoding")
 				response.Header.Del("content-length")
 				//netease.JsonBody = netease.JsonBody
-				fmt.Println("NeedRepackage")
+				//fmt.Println("NeedRepackage")
 				modifiedJson, _ := utils.JSON.Marshal(netease.JsonBody)
 				//fmt.Println(netease)
 				//fmt.Println(string(modifiedJson))
@@ -177,7 +177,7 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				}
 				response.Body = ioutil.NopCloser(bytes.NewBuffer(modifiedJson))
 			} else {
-				fmt.Println("NotNeedRepackage")
+				//fmt.Println("NotNeedRepackage")
 				responseHold := ioutil.NopCloser(bytes.NewBuffer(tmpBody))
 				response.Body = responseHold
 			}
@@ -438,9 +438,20 @@ func processMapJson(jsonMap common.MapType) bool {
 		case common.SliceType:
 			needModify = processSliceJson(value.(common.SliceType)) || needModify
 		default:
-			//if key == "fee" && value.(json.Number).String() != "0" {
-			//	jsonMap[key] = 0
-			//	needModify = true
+			//if key == "fee" {
+			//	fee := "0"
+			//	switch value.(type) {
+			//	case int:
+			//		fee = strconv.Itoa(value.(int))
+			//	case json.Number:
+			//		fee = value.(json.Number).String()
+			//	case string:
+			//		fee = value.(string)
+			//	}
+			//	if fee != "0" && fee != "8" {
+			//		jsonMap[key] = 0
+			//		needModify = true
+			//	}
 			//}
 		}
 	}
