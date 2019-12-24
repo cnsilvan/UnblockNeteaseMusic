@@ -115,7 +115,7 @@ func searchSongFn(key common.MapType) common.Song {
 	now:=time.Now().UnixNano() / 1e6
 	songs := getSongFromAllSource(key, ch)
 	//fmt.Println(utils.ToJson(songs))
-	fmt.Println("耗时:",(time.Now().UnixNano() / 1e6)-now,"ms")
+	fmt.Println("consumed:",(time.Now().UnixNano() / 1e6)-now,"ms")
 	result := common.Song{}
 	result.Size = 0
 	for _, song := range songs {

@@ -82,11 +82,10 @@ func RequestBefore(request *http.Request) *Netease {
 			length, _ := hex.Decode(requestBodyH, requestBody[8:len(requestBody)-len(pad)])
 			decryptECBBytes, _ := crypto.AesDecryptECB(requestBodyH[:length], []byte(linuxApiKey))
 			var result common.MapType
-			d := utils.JSON.NewDecoder(bytes.NewReader(decryptECBBytes))
-			d.UseNumber()
-			d.Decode(&result)
-			if utils.Exist("url", result) && utils.Exist("path", result["url"].(common.MapType)) {
-				netease.Path = result["url"].(common.MapType)["path"].(string)
+			result = utils.ParseJson(decryptECBBytes)
+			urlM, ok := result["url"].(common.MapType)
+			if ok && utils.Exist("url", result) && utils.Exist("path", urlM) {
+				netease.Path = urlM["path"].(string)
 			}
 			netease.Params = utils.ParseJson(bytes.NewBufferString(result["params"].(string)).Bytes())
 			fmt.Println("forward")
