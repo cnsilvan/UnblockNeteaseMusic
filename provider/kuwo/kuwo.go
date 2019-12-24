@@ -14,6 +14,10 @@ func SearchSong(key common.MapType) common.Song {
 	searchSong := common.Song{
 	}
 	keyword := key["keyword"].(string)
+	searchSongName := key["name"].(string)
+	searchSongName = strings.ToUpper(searchSongName)
+	searchArtistsName := key["artistsName"].(string)
+	searchArtistsName = strings.ToUpper(searchArtistsName)
 	token := getToken(keyword)
 	header := make(http.Header, 3)
 	header["referer"] = append(header["referer"], "http://www.kuwo.cn/search/list?key="+url.QueryEscape(keyword))
@@ -39,21 +43,54 @@ func SearchSong(key common.MapType) common.Song {
 	result := utils.ParseJson(body)
 	//fmt.Println(utils.ToJson(result))
 	var musicId = ""
-	if result["data"] != nil && result["data"].(common.MapType) != nil && len(result["data"].(common.MapType)["list"].([]interface{})) > 0 {
-		for _, matched := range result["data"].(common.MapType)["list"].([]interface{}) {
-			if matched != nil && matched.(common.MapType)["musicrid"] != nil && strings.Contains(keyword, matched.(common.MapType)["artist"].(string)) {
-				musicrid := matched.(common.MapType)["musicrid"].(string)
-				musicSlice := strings.Split(musicrid, "_")
-				musicId = musicSlice[len(musicSlice)-1]
-				searchSong.Artist = matched.(common.MapType)["artist"].(string)
-				searchSong.Name = matched.(common.MapType)["name"].(string)
-				//fmt.Println(utils.ToJson(matched))
-				break
-				//songName:=matched.(common.MapType)["name"].(string)
-			}
-		}
+	data, ok := result["data"].(common.MapType)
+	if ok {
+		list, ok := data["list"].([]interface{})
+		if ok && len(list) > 0 {
+			listLength := len(list)
+			for index, matched := range list {
+				kowoSong, ok := matched.(common.MapType)
+				if ok {
+					musicrid, ok := kowoSong["musicrid"].(string)
+					if ok {
+						singerName, singerNameOk := kowoSong["artist"].(string)
+						songName, songNameOk := kowoSong["name"].(string)
+						var songNameSores float32 = 0.0
+						if songNameOk {
+							songNameKeys := utils.ParseSongNameKeyWord(songName)
+							//fmt.Println("songNameKeys:", strings.Join(songNameKeys, "、"))
+							songNameSores = utils.CalMatchScores(searchSongName, songNameKeys)
+							//fmt.Println("songNameSores:", songNameSores)
+						}
+						var artistsNameSores float32 = 0.0
+						if singerNameOk {
+							singerName = strings.ReplaceAll(singerName, "&", "、")
+							artistKeys := utils.ParseSingerKeyWord(singerName)
+							//fmt.Println("kuwo:artistKeys:", strings.Join(artistKeys, "、"))
+							artistsNameSores = utils.CalMatchScores(searchArtistsName, artistKeys)
+							//fmt.Println("kuwo:artistsNameSores:", artistsNameSores)
+						}
+						songMatchScore := songNameSores*0.6 + artistsNameSores*0.4
+						//fmt.Println("kuwo:songMatchScore:", songMatchScore)
+						if songMatchScore > searchSong.MatchScore {
+							searchSong.MatchScore = songMatchScore
+							musicSlice := strings.Split(musicrid, "_")
+							musicId = musicSlice[len(musicSlice)-1]
+							searchSong.Name = songName
+							searchSong.Artist = singerName
+							searchSong.Artist = strings.ReplaceAll(singerName, " ", "")
+						}
 
+					}
+				}
+				if index >= listLength/2 || index > 9 {
+					break
+				}
+			}
+
+		}
 	}
+
 	if len(musicId) > 0 {
 		clientRequest := network.ClientRequest{
 			Method:    http.MethodGet,

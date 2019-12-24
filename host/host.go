@@ -1,6 +1,7 @@
 package host
 
 import (
+	"UnblockNeteaseMusic/common"
 	"UnblockNeteaseMusic/config"
 	"bufio"
 	"fmt"
@@ -10,30 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-)
-
-var (
-	ProxyIp     = "127.0.0.1"
-	ProxyDomain = map[string]string{
-		"music.163.com":            "59.111.181.35",
-		"interface.music.163.com":  "59.111.181.35",
-		"interface3.music.163.com": "59.111.181.35",
-		"apm.music.163.com":        "59.111.181.35",
-		"apm3.music.163.com":       "59.111.181.35",
-	}
-	HostDomain = map[string]string{
-		"music.163.com":           "59.111.181.35",
-		"interface.music.163.com": "59.111.181.35",
-	}
-	//ProxyDomain = map[string]string{
-	//	"music.163.com":            "59.111.181.35",
-	//	"interface.music.163.com":  "59.111.181.35",
-	//	"interface3.music.163.com": "59.111.181.35",
-	//	"apm.music.163.com":        "59.111.181.35",
-	//	"apm3.music.163.com":       "59.111.181.35",
-	//	"music.httpdns.c.163.com":  "59.111.181.35",
-	//	"httpdns.n.netease.com":    "59.111.179.213",
-	//}
 )
 
 func getWinSystemDir() string {
@@ -71,13 +48,42 @@ func appendToFile(fileName string, content string) error {
 	return err
 }
 func restoreHost(hostPath string) error {
+	host, err := os.Create(hostPath)
+	if err != nil {
+		fmt.Println("open file fail:", err)
+		return err
+	}
+	defer host.Close()
+	gBackup, err := os.Open(hostPath + ".gBackup")
+	if err != nil {
+		fmt.Println("Open write file fail:", err)
+		return err
+	}
+	defer gBackup.Close()
+	br := bufio.NewReader(gBackup)
+	for {
+		line, _, err := br.ReadLine()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			fmt.Println("read err:", err)
+			return err
+		}
+		newLine := string(line)
 
+		_, err = host.WriteString(newLine + "\n")
+		if err != nil {
+			fmt.Println("write to file fail:", err)
+			return err
+		}
+	}
 	return nil
 }
 func appendToHost(hostPath string) error {
 	content := " \n# UnblockNetEaseMusic（Go）\n"
-	for domain, _ := range HostDomain {
-		content += ProxyIp + " " + domain + "\n"
+	for domain, _ := range common.HostDomain {
+		content += common.ProxyIp + " " + domain + "\n"
 	}
 	return appendToFile(hostPath, content)
 }
@@ -111,7 +117,7 @@ func backupHost(hostPath string) (bool, error) {
 				containsProxyDomain = true
 				fmt.Println("Found UnblockNetEaseMusic Line")
 			}
-			for domain, _ := range ProxyDomain {
+			for domain, _ := range common.ProxyDomain {
 				if strings.Contains(newLine, domain) {
 					containsProxyDomain = true
 					fmt.Println("Found ProxyDomain Line")
@@ -153,7 +159,7 @@ func excludeRelatedHost(hostPath string) error {
 		}
 		newLine := string(line)
 		needWrite := true
-		for domain, _ := range ProxyDomain {
+		for domain, _ := range common.ProxyDomain {
 			if strings.Contains(newLine, domain) {
 				needWrite = false
 				break
@@ -180,7 +186,7 @@ func resolveIp(domain string) (ip string, err error) {
 	return "", nil
 }
 func resolveIps() error {
-	for domain, _ := range HostDomain {
+	for domain, _ := range common.HostDomain {
 		rAddr, err := net.ResolveIPAddr("ip", domain)
 		if err != nil {
 			fmt.Printf("Fail to resolve %s, %s\n", domain, err)
@@ -190,7 +196,11 @@ func resolveIps() error {
 			fmt.Printf("Fail to resolve %s,IP nil\n", domain)
 			return fmt.Errorf("Fail to resolve  %s,Ip length==0 \n", domain)
 		}
-		HostDomain[domain] = rAddr.IP.String()
+		ip := rAddr.IP.String()
+		if ip == "127.0.0.1" {
+			panic(fmt.Sprintf("%v ip:%v is error", domain, ip))
+		}
+		common.HostDomain[domain] = rAddr.IP.String()
 
 	}
 	return nil
@@ -209,6 +219,16 @@ func getHostsPath() (string, error) {
 	}
 	return hostsPath, nil
 }
+func RestoreHosts() error {
+	if *config.Mode == 1 {
+		hostsPath, err := getHostsPath()
+		if err == nil {
+			err := restoreHost(hostsPath)
+			return err
+		}
+	}
+	return nil
+}
 func InitHosts() error {
 	fmt.Println("-------------------Init Host-------------------")
 	if *config.Mode == 1 { //hosts mode
@@ -223,14 +243,14 @@ func InitHosts() error {
 						if err != nil {
 							return err
 						}
-						fmt.Println("HostDomain:", HostDomain)
+						fmt.Println("HostDomain:", common.HostDomain)
 					}
 				} else {
 					err = resolveIps()
 					if err != nil {
 						return err
 					}
-					fmt.Println("HostDomain:", HostDomain)
+					fmt.Println("HostDomain:", common.HostDomain)
 				}
 				if err = appendToHost(hostsPath); err == nil {
 
@@ -243,7 +263,7 @@ func InitHosts() error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("HostDomain:", HostDomain)
+		fmt.Println("HostDomain:", common.HostDomain)
 		return err
 	}
 

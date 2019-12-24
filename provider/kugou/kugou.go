@@ -7,11 +7,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func SearchSong(key common.MapType) common.Song {
@@ -19,6 +17,10 @@ func SearchSong(key common.MapType) common.Song {
 
 	}
 	keyword := key["keyword"].(string)
+	searchSongName := key["name"].(string)
+	searchSongName = strings.ToUpper(searchSongName)
+	searchArtistsName := key["artistsName"].(string)
+	searchArtistsName = strings.ToUpper(searchArtistsName)
 	cookies := getCookies()
 	clientRequest := network.ClientRequest{
 		Method:    http.MethodGet,
@@ -42,15 +44,54 @@ func SearchSong(key common.MapType) common.Song {
 	//fmt.Println(utils.ToJson(result))
 	data := result["data"]
 	var songHashId = ""
-	if data != nil && data.(common.MapType)["lists"] != nil && data.(common.MapType)["lists"].(common.SliceType) != nil && len(data.(common.MapType)["lists"].(common.SliceType)) > 0 {
-		for _, matched := range data.(common.MapType)["lists"].(common.SliceType) {
-			if matched != nil && matched.(common.MapType)["FileHash"] != nil && strings.Contains(keyword, matched.(common.MapType)["SingerName"].(string)) {
-				songHashId = matched.(common.MapType)["FileHash"].(string)
-				searchSong.Artist = matched.(common.MapType)["SingerName"].(string)
-				searchSong.Name = matched.(common.MapType)["SongName"].(string)
-				//fmt.Println(utils.ToJson(matched))
-				break
+	if data != nil && data.(common.MapType)["lists"] != nil {
+		switch data.(type) {
+		case common.MapType:
+			lists := data.(common.MapType)["lists"]
+			switch lists.(type) {
+			case common.SliceType:
+				listLength := len(lists.(common.SliceType))
+				if listLength > 0 {
+					for index, matched := range lists.(common.SliceType) {
+						if kugouSong, ok := matched.(common.MapType); ok {
+							if fileHash, ok := kugouSong["FileHash"].(string); ok {
+								singerName, singerNameOk := kugouSong["SingerName"].(string)
+								songName, songNameOk := kugouSong["SongName"].(string)
+								var songNameSores float32 = 0.0
+								if songNameOk {
+									songNameKeys := utils.ParseSongNameKeyWord(songName)
+									//fmt.Println("songNameKeys:", strings.Join(songNameKeys, "、"))
+									songNameSores = utils.CalMatchScores(searchSongName, songNameKeys)
+									//fmt.Println("songNameSores:", songNameSores)
+								}
+								var artistsNameSores float32 = 0.0
+								if singerNameOk {
+									artistKeys := utils.ParseSingerKeyWord(singerName)
+									//fmt.Println("kugou:artistKeys:", strings.Join(artistKeys, "、"))
+									artistsNameSores = utils.CalMatchScores(searchArtistsName, artistKeys)
+									//fmt.Println("kugou:artistsNameSores:", artistsNameSores)
+								}
+								songMatchScore := songNameSores*0.6 + artistsNameSores*0.4
+								//fmt.Println("kugou:songMatchScore:", songMatchScore)
+								if songMatchScore > searchSong.MatchScore {
+									searchSong.MatchScore = songMatchScore
+									songHashId = fileHash
+									searchSong.Name = songName
+									searchSong.Artist = singerName
+									searchSong.Artist = strings.ReplaceAll(singerName, " ", "")
+								}
+
+							}
+
+						}
+						if index >= listLength/2 || index > 9 {
+							break
+						}
+					}
+				}
+
 			}
+
 		}
 
 	}
@@ -77,11 +118,19 @@ func SearchSong(key common.MapType) common.Song {
 		switch data.(type) {
 		case common.MapType:
 			if data.(common.MapType)["play_url"] != nil {
-				songUrl := data.(common.MapType)["play_url"].(string)
-				if strings.Index(songUrl, "http") == 0 {
+				songUrl, ok := data.(common.MapType)["play_url"].(string)
+				if ok && strings.Index(songUrl, "http") == 0 {
 					searchSong.Url = songUrl
-					searchSong.Size, _ = data.(common.MapType)["filesize"].(json.Number).Int64()
-					searchSong.Br, _ = data.(common.MapType)["bitrate"].(int)
+					//searchSong.Size, _ = data.(common.MapType)["filesize"].(json.Number).Int64()
+					if br, ok := data.(common.MapType)["bitrate"]; ok {
+						switch br.(type) {
+						case json.Number:
+							searchSong.Br, _ = strconv.Atoi(br.(json.Number).String())
+						case int:
+							searchSong.Br = br.(int)
+
+						}
+					}
 					searchSong.Br = searchSong.Br * 1000
 					return searchSong
 				}
@@ -105,8 +154,7 @@ func createGuid() string {
 	return utils.MD5(bytes.NewBufferString(guid).Bytes())
 }
 func s4() string {
-	rand.Seed(time.Now().UnixNano())
-	num := uint64((1 + rand.Float64()) * 0x10000)
+	num := uint64((1 + common.Rand.Float64()) * 0x10000)
 	num = num | 0
 	return strconv.FormatUint(num, 16)[1:]
 }

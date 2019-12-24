@@ -2,7 +2,6 @@ package processor
 
 import (
 	"UnblockNeteaseMusic/common"
-	"UnblockNeteaseMusic/host"
 	"UnblockNeteaseMusic/network"
 	"UnblockNeteaseMusic/processor/crypto"
 	"UnblockNeteaseMusic/provider"
@@ -17,6 +16,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -161,9 +161,10 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				modified = tryLike(netease, request)
 			} else if strings.Contains(netease.Path, "url") {
 				modified = tryMatch(netease)
-				fmt.Println(utils.ToJson(netease.JsonBody))
+				//fmt.Println(utils.ToJson(netease.JsonBody))
 			}
 			if processMapJson(netease.JsonBody) || modified {
+				//fmt.Println(utils.ToJson(netease.JsonBody))
 				response.Header.Del("transfer-encoding")
 				response.Header.Del("content-encoding")
 				response.Header.Del("content-length")
@@ -181,7 +182,7 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				responseHold := ioutil.NopCloser(bytes.NewBuffer(tmpBody))
 				response.Body = responseHold
 			}
-
+			//fmt.Println(utils.ToJson(netease.JsonBody))
 		} else {
 			responseHold := ioutil.NopCloser(bytes.NewBuffer(tmpBody))
 			response.Body = responseHold
@@ -207,7 +208,7 @@ func tryCollect(netease *Netease, request *http.Request) bool {
 		}
 		pid := netease.Params["pid"].(string)
 		op := netease.Params["op"].(string)
-		proxyRemoteHost := host.ProxyDomain["music.163.com"]
+		proxyRemoteHost := common.HostDomain["music.163.com"]
 		clientRequest := network.ClientRequest{
 			Method:    http.MethodPost,
 			Host:      "music.163.com",
@@ -233,7 +234,7 @@ func tryLike(netease *Netease, request *http.Request) bool {
 	modified := false
 	if utils.Exist("trackId", netease.Params) {
 		trackId := netease.Params["trackId"].(string)
-		proxyRemoteHost := host.ProxyDomain["music.163.com"]
+		proxyRemoteHost := common.HostDomain["music.163.com"]
 		clientRequest := network.ClientRequest{
 			Method:    http.MethodGet,
 			Host:      "music.163.com",
@@ -332,15 +333,43 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 		haveSongMd5 := false
 		if song.Size > 0 {
 			modified = true
-			if song.Br == 999000 {
+			if index := strings.LastIndex(song.Url, "."); index != -1 {
+				songType := song.Url[index+1:]
+				if songType == "mp3" || songType == "flac" || songType == "ape" || songType == "wav" || songType == "aac" || songType == "mp4" {
+					data["type"] = songType
+				} else {
+					fmt.Println("unrecognized format:", songType)
+					if song.Br > 320000 {
+						data["type"] = "flac"
+					} else {
+						data["type"] = "mp3"
+					}
+				}
+			} else if song.Br > 320000 {
 				data["type"] = "flac"
 			} else {
 				data["type"] = "mp3"
 			}
+			if song.Br == 0 {
+				if data["type"] == "flac" || data["type"] == "ape" || data["type"] == "wav" {
+					song.Br = 999000
+				} else {
+					song.Br = 128000
+				}
+			}
 			data["encodeType"] = data["type"] //web
 			data["level"] = "standard"        //web
 			data["fee"] = 8                   //web
-			data["url"] = song.Url
+			uri, err := url.Parse(song.Url)
+			if err != nil {
+				fmt.Println("url.Parse error:", song.Url)
+				data["url"] = song.Url
+			} else {
+				//fmt.Println(uri.Path)
+				//fmt.Println()
+				//data["url"] = uri.Scheme + "://" + uri.Host + uri.EscapedPath()
+				data["url"] = uri.String()
+			}
 			if len(song.Md5) > 0 {
 				data["md5"] = song.Md5
 				haveSongMd5 = true
@@ -366,7 +395,6 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 				go calculateSongMd5(songId, song.Url)
 			}
 		}
-
 	}
 	return modified
 }

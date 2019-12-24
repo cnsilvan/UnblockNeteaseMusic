@@ -1,6 +1,7 @@
 package config
 
 import (
+	"UnblockNeteaseMusic/common"
 	"UnblockNeteaseMusic/utils"
 	"flag"
 	"fmt"
@@ -27,11 +28,15 @@ func ValidParams() bool {
 			fmt.Printf("arg[%d]=%s\n", i, flag.Arg(i))
 		}
 	}
-	sources := strings.Split(*Source, ":")
+	sources := strings.Split(strings.ToLower(*Source), ":")
 	if len(sources) < 1 {
 		fmt.Printf("source param invalid: %v \n", *Source)
 		return false
 	}
+	for _, source := range sources {
+		common.Source = append(common.Source, source)
+	}
+
 	currentPath, error := utils.GetCurrentPath()
 	if error != nil {
 		fmt.Println(error)

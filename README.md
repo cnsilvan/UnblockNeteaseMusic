@@ -1,15 +1,15 @@
 # UnblockNeteaseMusic
 解锁网易云音乐客户端变灰歌曲 (Golang)
 
-# 必读
+# 特性
 * 解决nodejs版本获取灰色歌曲过慢的问题
-* 尽量去解决了nodejs版本搜索歌曲的问题（放了另一首歌甚至电台）
-* 支持一批不支持vfp的路由器（我的路由器是K3啊，悲剧的K3啊）
-* 目前速度已经大幅度超越nodejs版本了，功能基本一致（偷懒暂时只写了kuwo的源），有空的话我会继续写下去的！
+* 较为精准的歌曲匹配
+* 支持没有vfp的路由器（我的路由器是K3啊，悲剧的K3啊）
+* 暂时支持酷狗、酷我 、咪咕的源（其他的有空再添加） 
 * 边学go边写的项目，多点谅解，谢谢！
 
 # 运行
-先为自己生成证书（windows需要自己下载openssl）
+先为自己生成证书（windows需要自己下载openssl）（为了你的安全，请务必自己生成证书）
 ```
 ./createCertificate.sh
 ```
@@ -40,5 +40,6 @@ sudo ./UnblockNeteaseMusic
 
 本应用获取music.163.com的IP是通过本机直接查询，非nodejs版本请求music.httpdns.c.163.com获取
 
+已知：windows版本的网易云音乐需要在应用内设置代理 127.0.0.1 端口 80
 # 感谢
 [NodeJs版本](https://github.com/nondanee/UnblockNeteaseMusic)以及为它贡献的所有coder

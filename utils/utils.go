@@ -3,14 +3,17 @@ package utils
 import (
 	"bytes"
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/json-iterator/go"
+	"golang.org/x/text/width"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -77,4 +80,143 @@ func MD5(data []byte) string {
 	h := md5.New()
 	h.Write(data)
 	return hex.EncodeToString(h.Sum(nil))
+}
+func GenRandomBytes(size int) (blk []byte, err error) {
+	blk = make([]byte, size)
+	_, err = rand.Read(blk)
+	return
+}
+func CalMatchScores(beMatchedData string, keyword []string) float32 {
+	var score float32 = 0.0
+	beMatchedData = width.Narrow.String(strings.ToUpper(beMatchedData))
+	orginData := beMatchedData
+	for _, key := range keyword {
+		beMatchedData = strings.Replace(beMatchedData, key, "", 1)
+	}
+	if beMatchedData == orginData {
+		return 0.0
+	}
+	//beMatchedData = ReplaceAll(beMatchedData, "[`~!@#$%^&*()_\\-+=|{}':;',\\[\\]\\\\.<>/?~！@#￥%……&*（）——+|{}【】‘；：”“’。，、？]", "")
+	//beMatchedData = strings.ReplaceAll(beMatchedData, " ", "")
+	score = 1 - (float32(len(beMatchedData)) / (float32(len(orginData))))
+	return score
+}
+
+var leftPairedSymbols = width.Narrow.String("(（《<[{「【『\"'")
+var rightPairedSymbols = width.Narrow.String(")）》>]}」】』\"'")
+
+func parsePairedSymbols(data string, sub string, substr []string, keyword map[string]int) string {
+	data = strings.TrimSpace(data)
+	leftIndex := strings.Index(leftPairedSymbols, sub)
+	rightIndex := strings.Index(rightPairedSymbols, sub)
+	subIndex := 0
+	for index, key := range substr {
+		if key == sub {
+			subIndex = index
+			break
+		}
+	}
+	index := -1
+	if leftIndex != -1 {
+		index = leftIndex
+	} else if rightIndex != -1 {
+		index = rightIndex
+	}
+	if index != -1 {
+		leftSymbol := leftPairedSymbols[index : index+len(sub)]
+		rightSymbol := rightPairedSymbols[index : index+len(sub)]
+		leftCount := strings.Count(data, leftSymbol)
+		rightCount := strings.Count(data, rightSymbol)
+		if leftCount == rightCount && leftCount > 0 {
+			for i := 0; i < leftCount; i++ {
+				lastLeftIndex := strings.LastIndex(data, leftSymbol)
+				matchedRightIndex := strings.Index(data[lastLeftIndex:], rightSymbol)
+				if matchedRightIndex == -1 {
+					continue
+				}
+				key := strings.TrimSpace(data[lastLeftIndex+len(leftSymbol) : lastLeftIndex+matchedRightIndex])
+				data = data[:lastLeftIndex] + " " + data[lastLeftIndex+matchedRightIndex+len(rightSymbol):]
+				substr2 := substr[subIndex+1:]
+				parseKeyWord(key, substr2, keyword)
+
+			}
+		}
+	}
+	return data
+}
+func parseKeyWord(data string, substr []string, keyword map[string]int) {
+	if len(data) == 0 {
+		return
+	}
+	data = strings.TrimSpace(data)
+	for _, sub := range substr {
+		if strings.Contains(data, sub) {
+			if strings.Contains(leftPairedSymbols, sub) || strings.Contains(rightPairedSymbols, sub) {
+				data = parsePairedSymbols(data, sub, substr, keyword)
+			} else {
+				splitData := strings.Split(data, sub)
+				for _, key := range splitData {
+					newKey := strings.TrimSpace(key)
+					parseKeyWord(newKey, substr, keyword)
+					data = strings.Replace(data, key, "", 1)
+
+				}
+				data = strings.ReplaceAll(data, sub, "")
+			}
+
+		}
+	}
+	data = strings.TrimSpace(data)
+	if len(data) > 0 {
+		if strings.EqualFold(data, "LIVE版") {
+			data = "LIVE"
+		}
+		keyword[data] = 1
+	}
+}
+
+type ByLenSort []string
+
+func (a ByLenSort) Len() int {
+	return len(a)
+}
+
+func (a ByLenSort) Less(i, j int) bool {
+	return len(a[i]) > len(a[j])
+}
+
+func (a ByLenSort) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+func ParseSongNameKeyWord(data string) []string {
+	var keyword = make(map[string]int)
+	if len(data) > 0 {
+		data = width.Narrow.String(strings.ToUpper(data))
+		substr := []string{"(", "[", "{", "<", "《", "「", "【", "『", "+", "/", ":", ",", "｡", " "}
+		for index, sub := range substr {
+			substr[index] = width.Narrow.String(sub)
+		}
+		parseKeyWord(data, substr, keyword)
+	}
+	keys := make([]string, 0, len(keyword))
+	for k, _ := range keyword {
+		keys = append(keys, k)
+	}
+	sort.Sort(ByLenSort(keys))
+	return keys
+}
+func ParseSingerKeyWord(data string) []string {
+	var keyword = make(map[string]int)
+	if len(data) > 0 {
+		data = strings.TrimSpace(strings.ToUpper(data))
+		substr := []string{"、"}
+		parseKeyWord(data, substr, keyword)
+
+	}
+	keys := make([]string, 0, len(keyword))
+	for k, _ := range keyword {
+		keys = append(keys, k)
+	}
+	sort.Sort(ByLenSort(keys))
+	return keys
 }

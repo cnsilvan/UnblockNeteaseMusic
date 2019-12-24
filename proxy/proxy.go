@@ -1,8 +1,8 @@
 package proxy
 
 import (
+	"UnblockNeteaseMusic/common"
 	"UnblockNeteaseMusic/config"
-	"UnblockNeteaseMusic/host"
 	"UnblockNeteaseMusic/network"
 	"UnblockNeteaseMusic/processor"
 	"UnblockNeteaseMusic/version"
@@ -23,7 +23,7 @@ func InitProxy() {
 	fmt.Println("-------------------Init Proxy-------------------")
 	address := "0.0.0.0:"
 	go startTlsServer(address+strconv.Itoa(*config.TLSPort), *config.CertFile, *config.KeyFile, &HttpHandler{})
-	startServer(address+strconv.Itoa(*config.Port), &HttpHandler{})
+	go startServer(address+strconv.Itoa(*config.Port), &HttpHandler{})
 }
 func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request) {
 	requestURI := request.RequestURI
@@ -61,14 +61,14 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 		return
 	}
 	request.Host = hostStr
-	if proxyDomain, ok := host.ProxyDomain[hostStr]; ok && !strings.Contains(path, "stream") {
+	if proxyDomain, ok := common.ProxyDomain[hostStr]; ok && !strings.Contains(path, "stream") {
 		if request.Method == http.MethodConnect {
 			proxyConnectLocalhost(resp, request)
 		} else {
 
 			if *config.Mode != 1 {
 				proxyDomain = hostStr
-			} else if hostIp, ok := host.HostDomain[hostStr]; ok {
+			} else if hostIp, ok := common.HostDomain[hostStr]; ok {
 				proxyDomain = hostIp
 			} else {
 				proxyDomain = hostStr
@@ -107,7 +107,7 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 		if request.Method == http.MethodConnect {
 			proxyConnect(resp, request)
 		} else {
-			if proxyDomain, ok := host.ProxyDomain[hostStr]; ok {
+			if proxyDomain, ok := common.HostDomain[hostStr]; ok {
 				if len(request.URL.Port()) > 0 {
 					proxyDomain = proxyDomain + ":" + request.URL.Port()
 				}
@@ -123,7 +123,7 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 			}
 
 			//proxy := httputil.NewSingleHostReverseProxy(remote)
-			for hostDoman, _ := range host.HostDomain {
+			for hostDoman, _ := range common.HostDomain {
 				if strings.Contains(request.Referer(), hostDoman) {
 					request.Header.Set("referer", request.Host)
 					break

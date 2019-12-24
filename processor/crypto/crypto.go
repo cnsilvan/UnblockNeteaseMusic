@@ -5,6 +5,9 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
 )
@@ -19,6 +22,17 @@ func AesEncryptCBC(origData []byte, key []byte) (encrypted []byte) {
 	blockMode := cipher.NewCBCEncrypter(block, key[:blockSize]) // 加密模式
 	encrypted = make([]byte, len(origData))                     // 创建数组
 	blockMode.CryptBlocks(encrypted, origData)                  // 加密
+	return encrypted
+}
+func AesEncryptCBCWithIv(origData []byte, key []byte, iv []byte) (encrypted []byte) {
+	// 分组秘钥
+	// NewCipher该函数限制了输入k的长度必须为16, 24或者32
+	block, _ := aes.NewCipher(key)
+	blockSize := block.BlockSize()                 // 获取秘钥块的长度
+	origData = pkcs5Padding(origData, blockSize)   // 补全码
+	blockMode := cipher.NewCBCEncrypter(block, iv) // 加密模式
+	encrypted = make([]byte, len(origData))        // 创建数组
+	blockMode.CryptBlocks(encrypted, origData)     // 加密
 	return encrypted
 }
 func AesDecryptCBC(encrypted []byte, key []byte) (decrypted []byte) {
@@ -115,5 +129,24 @@ func AesDecryptCFB(encrypted []byte, key []byte) (decrypted []byte) {
 
 	stream := cipher.NewCFBDecrypter(block, iv)
 	stream.XORKeyStream(encrypted, encrypted)
+	return encrypted
+}
+
+func RSAEncrypt(origData []byte, publicKey []byte) (encrypted []byte) {
+	pemBlock, _ := pem.Decode(publicKey)
+	if pemBlock == nil {
+		fmt.Println("pem.Decode error")
+		return encrypted
+	}
+	pubKey, err:= x509.ParsePKIXPublicKey(pemBlock.Bytes)
+	if err != nil {
+		fmt.Println("x509.ParsePKCS1PublicKey:", err)
+		return encrypted
+	}
+	encrypted, err = rsa.EncryptPKCS1v15(rand.Reader, pubKey.(*rsa.PublicKey), origData)
+	if err != nil {
+		fmt.Println("rsa.EncryptPKCS1v15:", err)
+		return encrypted
+	}
 	return encrypted
 }

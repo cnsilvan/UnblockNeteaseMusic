@@ -1,37 +1,39 @@
 package provider
 
 import (
+	"UnblockNeteaseMusic/cache"
 	"UnblockNeteaseMusic/common"
-	"UnblockNeteaseMusic/host"
 	"UnblockNeteaseMusic/network"
+	kugou "UnblockNeteaseMusic/provider/kugou"
 	"UnblockNeteaseMusic/provider/kuwo"
+	"UnblockNeteaseMusic/provider/migu"
 	"UnblockNeteaseMusic/utils"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
-var cache = make(map[string]common.Song)
-
 func UpdateCacheMd5(songId string, songMd5 string) {
-	if song, ok := cache[songId]; ok {
+	if song, ok := cache.GetSong(songId); ok {
 		song.Md5 = songMd5
-		cache[songId] = song
-		//fmt.Println("update cache,songId:", songId, ",md5:", songMd5, utils.ToJson(song))
+		cache.Put(songId, song)
 	}
 }
 func Find(id string) common.Song {
 	fmt.Println("find song info,id:", id)
-	//if song, ok := cache[id]; ok {
-	//	fmt.Println("hit cache:", utils.ToJson(song))
-	//	return song
-	//}
-
+	if song, ok := cache.GetSong(id); ok {
+		fmt.Println("hit cache:", utils.ToJson(song))
+		go checkCache(song)
+		return song
+	}
 	var songT common.Song
+	songT.Id = id
 	clientRequest := network.ClientRequest{
 		Method:    http.MethodGet,
-		RemoteUrl: "https://" + host.ProxyDomain["music.163.com"] + "/api/song/detail?ids=[" + id + "]",
+		RemoteUrl: "https://" + common.HostDomain["music.163.com"] + "/api/song/detail?ids=[" + id + "]",
 		Host:      "music.163.com",
 		Header:    nil,
 		Proxy:     true,
@@ -48,71 +50,144 @@ func Find(id string) common.Song {
 			return songT
 		}
 		oJson := utils.ParseJson(body)
-		if oJson["songs"] != nil {
-			song := oJson["songs"].(common.SliceType)[0]
-			var searchSong = make(common.MapType, 6)
+		if songs, ok := oJson["songs"].(common.SliceType); ok && len(songs) > 0 {
+			song := songs[0]
+			var searchSong = make(common.MapType, 8)
+			searchSong["songId"] = id
 			var artists []string
 			switch song.(type) {
 			case common.MapType:
-				searchSong["id"] = song.(common.MapType)["id"]
-				searchSong["name"] = song.(common.MapType)["name"]
-				searchSong["alias"] = song.(common.MapType)["alias"]
-				searchSong["duration"] = song.(common.MapType)["duration"]
+				neteaseSong := song.(common.MapType)
+				searchSong["id"] = neteaseSong["id"]
+				searchSong["name"] = neteaseSong["name"]
+				searchSong["alias"] = neteaseSong["alias"]
+				searchSong["duration"] = neteaseSong["duration"]
 				searchSong["album"] = make(common.MapType, 2)
-				searchSong["album"].(common.MapType)["id"] = song.(common.MapType)["album"].(common.MapType)["id"]
-				searchSong["album"].(common.MapType)["name"] = song.(common.MapType)["album"].(common.MapType)["name"]
-				switch song.(common.MapType)["artists"].(type) {
+				searchSong["album"].(common.MapType)["id"], ok = neteaseSong["album"].(common.MapType)["id"]
+				searchSong["album"].(common.MapType)["name"], ok = neteaseSong["album"].(common.MapType)["name"]
+				switch neteaseSong["artists"].(type) {
 				case common.SliceType:
-					length := len(song.(common.MapType)["artists"].(common.SliceType))
+					length := len(neteaseSong["artists"].(common.SliceType))
 					searchSong["artists"] = make(common.SliceType, length)
 					artists = make([]string, length)
-					for index, value := range song.(common.MapType)["artists"].(common.SliceType) {
+					for index, value := range neteaseSong["artists"].(common.SliceType) {
 						if searchSong["artists"].(common.SliceType)[index] == nil {
 							searchSong["artists"].(common.SliceType)[index] = make(common.MapType, 2)
 						}
-						searchSong["artists"].(common.SliceType)[index].(common.MapType)["id"] = value.(common.MapType)["id"]
-						searchSong["artists"].(common.SliceType)[index].(common.MapType)["name"] = value.(common.MapType)["name"]
-						artists[index] = value.(common.MapType)["name"].(string)
+						searchSong["artists"].(common.SliceType)[index].(common.MapType)["id"], ok = value.(common.MapType)["id"]
+						searchSong["artists"].(common.SliceType)[index].(common.MapType)["name"], ok = value.(common.MapType)["name"]
+						artists[index], ok = value.(common.MapType)["name"].(string)
 					}
 
 				}
 			default:
 
 			}
-			if searchSong["name"] != nil {
-				searchSong["name"] = utils.ReplaceAll(searchSong["name"].(string), `\s*cover[:：\s][^）]+）`, "")
-				searchSong["name"] = utils.ReplaceAll(searchSong["name"].(string), `\(\s*cover[:：\s][^\)]+\)`, "")
-			}
-			searchSong["keyword"] = searchSong["name"].(string) + " " + strings.Join(artists, " / ")
-			songUrl := searchSongFn(searchSong)
-			if len(songUrl.Url) > 0 { //未版权
-				songS := processSong(songUrl)
-				if songS.Size > 0 {
-					//fmt.Println(utils.ToJson(songS))
-					if s, ok := cache[id]; ok && len(s.Md5) > 0 {
-						songS.Md5 = s.Md5
-					}
-					cache[id] = songS
-					return songS
-				}
-			}
-			//fmt.Println(utils.ToJson(modifiedJson))
+			//if searchSong["name"] != nil {
+			//	searchSong["name"] = utils.ReplaceAll(searchSong["name"].(string), `\s*cover[:：\s][^）]+）`, "")
+			//	searchSong["name"] = utils.ReplaceAll(searchSong["name"].(string), `\(\s*cover[:：\s][^\)]+\)`, "")
+			//}
+			searchSong["artistsName"] = strings.Join(artists, " ")
+			searchSong["keyword"] = searchSong["name"].(string) + " " + searchSong["artistsName"].(string)
+			fmt.Println("search song:" + searchSong["keyword"].(string))
+			songT = searchSongFn(searchSong)
+			fmt.Println(utils.ToJson(songT))
 			return songT
+
 		} else {
 			return songT
 		}
 	} else {
 		return songT
 	}
-
 }
+
 func searchSongFn(key common.MapType) common.Song {
-	//cache after
-	//kugou.SearchSong(key)
-	return kuwo.SearchSong(key)
+	id := "0"
+	searchSongName := key["name"].(string)
+	searchSongName = strings.ToUpper(searchSongName)
+	searchArtistsName := key["artistsName"].(string)
+	searchArtistsName = strings.ToUpper(searchArtistsName)
+	if songId, ok := key["songId"]; ok {
+		id = songId.(string)
+	}
+	var ch = make(chan common.Song)
+	now:=time.Now().UnixNano() / 1e6
+	songs := getSongFromAllSource(key, ch)
+	//fmt.Println(utils.ToJson(songs))
+	fmt.Println("耗时:",(time.Now().UnixNano() / 1e6)-now,"ms")
+	result := common.Song{}
+	result.Size = 0
+	for _, song := range songs {
+		//songNameKeys := utils.ParseSongNameKeyWord(song.Name)
+		//fmt.Println("songNameKeys:", strings.Join(songNameKeys, "、"))
+		//songNameSores := utils.CalMatchScores(searchSongName, songNameKeys)
+		//fmt.Println("songNameSores:", songNameSores)
+		//artistKeys := utils.ParseSingerKeyWord(song.Artist)
+		//fmt.Println("artistKeys:", strings.Join(artistKeys, "、"))
+		//artistsNameSores := utils.CalMatchScores(searchArtistsName, artistKeys)
+		//fmt.Println("artistsNameSores:", artistsNameSores)
+		//songMatchScore := songNameSores*0.6 + artistsNameSores*0.4
+		//song.MatchScore = songMatchScore
+		if song.MatchScore > result.MatchScore {
+			result = song
+		} else if song.MatchScore == result.MatchScore && song.Size > result.Size {
+			result = song
+		}
+	}
+
+	if id != "0" {
+		result.Id = id
+		if len(result.Url) > 0 {
+			cache.Put(id, result)
+		}
+	}
+	return result
 
 }
-func processSong(song common.Song) common.Song {
+
+func getSongFromAllSource(key common.MapType, ch chan common.Song) []common.Song {
+	var songs []common.Song
+	sum := 0
+	for _, source := range common.Source {
+		switch source {
+		case "kuwo":
+			go getSongFromKuWo(key, ch)
+			sum++
+		case "kugou":
+			go getSongFromKuGou(key, ch)
+			sum++
+		case "migu":
+			go getSongFromMiGu(key, ch)
+			sum++
+
+		}
+	}
+	for {
+		select {
+		case song, _ := <-ch:
+			if len(song.Url) > 0 {
+				songs = append(songs, song)
+			}
+			sum--
+			if sum <= 0 {
+				return songs
+			}
+		case <-time.After(time.Second * 6):
+			return songs
+		}
+	}
+}
+func getSongFromKuWo(key common.MapType, ch chan common.Song) {
+	ch <- calculateSongInfo(kuwo.SearchSong(key))
+}
+func getSongFromKuGou(key common.MapType, ch chan common.Song) {
+	ch <- calculateSongInfo(kugou.SearchSong(key))
+}
+func getSongFromMiGu(key common.MapType, ch chan common.Song) {
+	ch <- calculateSongInfo(migu.SearchSong(key))
+}
+func calculateSongInfo(song common.Song) common.Song {
 	if len(song.Url) > 0 {
 		if len(song.Md5) > 0 && song.Br > 0 && song.Size > 0 {
 			return song
@@ -122,6 +197,10 @@ func processSong(song common.Song) common.Song {
 		}
 		header := make(http.Header, 1)
 		header["range"] = append(header["range"], "bytes=0-8191")
+		uri, err := url.Parse(song.Url)
+		if err == nil {
+			song.Url = uri.String()
+		}
 		clientRequest := network.ClientRequest{
 			Method:    http.MethodGet,
 			RemoteUrl: song.Url,
@@ -163,11 +242,13 @@ func processSong(song common.Song) common.Song {
 						return song
 					}
 					bitrate := decodeBitrate(body)
-					if bitrate > 0 && bitrate < 500 {
+					if bitrate == 999 || (bitrate > 0 && bitrate < 500) {
 						song.Br = bitrate * 1000
 					}
 				}
 			}
+		} else {
+			return common.Song{}
 		}
 	}
 	return song
@@ -218,4 +299,22 @@ func decodeBitrate(data []byte) int {
 		return bitRateMap[int(version)][int(layer)][int(bitrate)]
 	}
 	return 0
+}
+func checkCache(song common.Song) {
+	header := make(http.Header, 1)
+	header["range"] = append(header["range"], "bytes=0-255")
+	clientRequest := network.ClientRequest{
+		Method:    http.MethodGet,
+		RemoteUrl: song.Url,
+		Header:    header,
+		Proxy:     false,
+	}
+	resp, err := network.Request(&clientRequest)
+	if err != nil {
+		fmt.Println("processSong fail:", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		cache.Delete(song.Id)
+	}
 }

@@ -1,7 +1,7 @@
 package network
 
 import (
-	host2 "UnblockNeteaseMusic/host"
+	"UnblockNeteaseMusic/common"
 	"bytes"
 	"compress/gzip"
 	"crypto/tls"
@@ -84,7 +84,7 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 		// verify music.163.com certificate
 		tr.TLSClientConfig.ServerName = request.Host //it doesn't contain any IP SANs
 		// redirect to music.163.com will need verify self
-		if _, ok := host2.HostDomain[request.Host]; ok {
+		if _, ok := common.HostDomain[request.Host]; ok {
 			tr.TLSClientConfig.InsecureSkipVerify = true
 		}
 
