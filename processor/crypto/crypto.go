@@ -76,7 +76,6 @@ func AesEncryptECB(origData []byte, key []byte) (encrypted []byte) {
 func AesDecryptECB(encrypted []byte, key []byte) (decrypted []byte, success bool) {
 	cipher, _ := aes.NewCipher(generateKey(key))
 	decrypted = make([]byte, len(encrypted))
-	//
 	for bs, be := 0, cipher.BlockSize(); bs < len(encrypted); bs, be = bs+cipher.BlockSize(), be+cipher.BlockSize() {
 		if be > len(encrypted) {
 			return encrypted, false
@@ -131,22 +130,37 @@ func AesDecryptCFB(encrypted []byte, key []byte) (decrypted []byte) {
 	stream.XORKeyStream(encrypted, encrypted)
 	return encrypted
 }
-
-func RSAEncrypt(origData []byte, publicKey []byte) (encrypted []byte) {
-	pemBlock, _ := pem.Decode(publicKey)
-	if pemBlock == nil {
-		fmt.Println("pem.Decode error")
-		return encrypted
-	}
-	pubKey, err:= x509.ParsePKIXPublicKey(pemBlock.Bytes)
-	if err != nil {
-		fmt.Println("x509.ParsePKCS1PublicKey:", err)
-		return encrypted
-	}
-	encrypted, err = rsa.EncryptPKCS1v15(rand.Reader, pubKey.(*rsa.PublicKey), origData)
+func RSAEncryptV2(origData []byte, publicKey *rsa.PublicKey) []byte {
+	encrypted, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, origData)
 	if err != nil {
 		fmt.Println("rsa.EncryptPKCS1v15:", err)
 		return encrypted
 	}
 	return encrypted
+}
+func RSAEncrypt(origData []byte, publicKey []byte) (encrypted []byte) {
+	pubKey, err := ParsePublicKey(publicKey)
+	if err != nil {
+		fmt.Println("rsa.ParsePublicKey:", err)
+		return encrypted
+	}
+	encrypted, err = rsa.EncryptPKCS1v15(rand.Reader, pubKey, origData)
+	if err != nil {
+		fmt.Println("rsa.EncryptPKCS1v15:", err)
+		return encrypted
+	}
+	return encrypted
+}
+func ParsePublicKey(publicKey []byte) (*rsa.PublicKey, error) {
+	pemBlock, _ := pem.Decode(publicKey)
+	if pemBlock == nil {
+		fmt.Println("pem.Decode error")
+		return nil, fmt.Errorf("pem.Decode error")
+	}
+	pubKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
+	if err != nil {
+		fmt.Println("x509.ParsePKCS1PublicKey:", err)
+		return nil, err
+	}
+	return pubKey.(*rsa.PublicKey), nil
 }

@@ -7,6 +7,7 @@ import (
 	"UnblockNeteaseMusic/utils"
 	"bytes"
 	"crypto/md5"
+	"crypto/rsa"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -16,6 +17,23 @@ import (
 	"strings"
 )
 
+var publicKey = []byte(`
+-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC8asrfSaoOb4je+DSmKdriQJKW
+VJ2oDZrs3wi5W67m3LwTB9QVR+cE3XWU21Nx+YBxS0yun8wDcjgQvYt625ZCcgin
+2ro/eOkNyUOTBIbuj9CvMnhUYiR61lC1f1IGbrSYYimqBVSjpifVufxtx/I3exRe
+ZosTByYp4Xwpb1+WAQIDAQAB
+-----END PUBLIC KEY-----
+`)
+var rsaPublicKey *rsa.PublicKey
+
+func getRsaPublicKey() (*rsa.PublicKey, error) {
+	var err error = nil
+	if rsaPublicKey.Size() == 0 {
+		rsaPublicKey, err = crypto.ParsePublicKey(publicKey)
+	}
+	return rsaPublicKey, err
+}
 func SearchSong(key common.MapType) common.Song {
 	searchSong := common.Song{
 	}
@@ -41,16 +59,17 @@ func SearchSong(key common.MapType) common.Song {
 		fmt.Println(err)
 		return searchSong
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		fmt.Println(resp.StatusCode)
 		return searchSong
 	}
-	body, err := network.GetResponseBody(resp, false)
+	body, err := network.StealResponseBody(resp)
 	if err != nil {
 		fmt.Println(err)
 		return searchSong
 	}
-	result := utils.ParseJson(body)
+	result := utils.ParseJsonV2(body)
 	//fmt.Println(utils.ToJson(result))
 	var copyrightId = ""
 	data, ok := result["songResultData"].(common.MapType)
@@ -123,8 +142,9 @@ func SearchSong(key common.MapType) common.Song {
 			fmt.Println(err)
 			return searchSong
 		}
-		body, err = network.GetResponseBody(resp, false)
-		data := utils.ParseJson(body)
+		defer resp.Body.Close()
+		body, err = network.StealResponseBody(resp)
+		data := utils.ParseJsonV2(body)
 		//fmt.Println(data)
 		data, ok := data["data"].(common.MapType)
 		if ok {
@@ -147,15 +167,6 @@ func SearchSong(key common.MapType) common.Song {
 	return searchSong
 
 }
-
-var publicKey = []byte(`
------BEGIN PUBLIC KEY-----
-MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC8asrfSaoOb4je+DSmKdriQJKW
-VJ2oDZrs3wi5W67m3LwTB9QVR+cE3XWU21Nx+YBxS0yun8wDcjgQvYt625ZCcgin
-2ro/eOkNyUOTBIbuj9CvMnhUYiR61lC1f1IGbrSYYimqBVSjpifVufxtx/I3exRe
-ZosTByYp4Xwpb1+WAQIDAQAB
------END PUBLIC KEY-----
-`)
 
 func encrypt(text string) string {
 	encryptedData := ""
@@ -183,7 +194,14 @@ func encrypt(text string) string {
 	encryptedD := crypto.AesEncryptCBCWithIv(bytes.NewBufferString(text).Bytes(), key, iv)
 	data = append(data, encryptedD...)
 	dat := base64.StdEncoding.EncodeToString(data)
-	sec := base64.StdEncoding.EncodeToString(crypto.RSAEncrypt(pwd, publicKey))
+	var rsaB []byte
+	pubKey, err := getRsaPublicKey()
+	if err == nil {
+		rsaB = crypto.RSAEncryptV2(pwd, pubKey)
+	} else {
+		rsaB = crypto.RSAEncrypt(pwd, publicKey)
+	}
+	sec := base64.StdEncoding.EncodeToString(rsaB)
 	//fmt.Println("data:", dat)
 	//fmt.Println("sec:", sec)
 	encryptedData = "data=" + url.QueryEscape(dat)

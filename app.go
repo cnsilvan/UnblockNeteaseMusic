@@ -34,7 +34,7 @@ func main() {
 				//	//	// 2、http://localhost:6060/debug/charts
 				//	//	// 3、http://localhost:6060/debug/pprof
 				//	//	fmt.Println("启动 6060...")
-				//log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
+			//	log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
 			//}()
 			signalChan := make(chan os.Signal, 1)
 			exit := make(chan bool, 1)
@@ -48,7 +48,7 @@ func main() {
 				}
 				exit <- true
 			}()
-			signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+			signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT,syscall.SIGSEGV)
 			proxy.InitProxy()
 			<-exit
 			fmt.Println("exiting UnblockNeteaseMusic")

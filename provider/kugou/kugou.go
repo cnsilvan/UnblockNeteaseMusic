@@ -34,13 +34,14 @@ func SearchSong(key common.MapType) common.Song {
 		fmt.Println(err)
 		return searchSong
 	}
+	defer resp.Body.Close()
 	//header := resp.Header
-	body, err := network.GetResponseBody(resp, false)
+	body, err := network.StealResponseBody(resp)
 	if err != nil {
 		fmt.Println(err)
 		return searchSong
 	}
-	result := utils.ParseJson(body)
+	result := utils.ParseJsonV2(body)
 	//fmt.Println(utils.ToJson(result))
 	data := result["data"]
 	var songHashId = ""
@@ -111,8 +112,9 @@ func SearchSong(key common.MapType) common.Song {
 			fmt.Println(err)
 			return searchSong
 		}
-		body, err = network.GetResponseBody(resp, false)
-		songData := utils.ParseJson(body)
+		defer resp.Body.Close()
+		body, err = network.StealResponseBody(resp)
+		songData := utils.ParseJsonV2(body)
 		data = songData["data"]
 		//fmt.Println(utils.ToJson(songData))
 		switch data.(type) {

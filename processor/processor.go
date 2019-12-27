@@ -8,7 +8,6 @@ import (
 	"UnblockNeteaseMusic/utils"
 	"bufio"
 	"bytes"
-	"compress/gzip"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -74,7 +73,8 @@ func RequestBefore(request *http.Request) *Netease {
 		requestHold := ioutil.NopCloser(bytes.NewBuffer(requestBody))
 		request.Body = requestHold
 		pad := make([]byte, 0)
-		if matched, _ := regexp.Match("/%0 +$/", requestBody); matched {
+		reg := regexp.MustCompile(`%0+$`)
+		if matched := reg.Find(requestBody); len(matched) > 0 {
 			pad = requestBody
 		}
 		if netease.Path == "/api/linux/forward" {
@@ -136,34 +136,29 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			enableGzip = true
 		}
 		body, _ := ioutil.ReadAll(response.Body)
+		response.Body.Close()
 		tmpBody := make([]byte, len(body))
 		copy(tmpBody, body)
 		if len(body) > 0 {
 			decryptECBBytes := body
 			if enableGzip {
-				r, _ := gzip.NewReader(bytes.NewReader(decryptECBBytes))
-				defer r.Close()
-				decryptECBBytes, _ = ioutil.ReadAll(r)
+				decryptECBBytes, _ = utils.UnGzip(decryptECBBytes)
 			}
 			//fmt.Println(string(decryptECBBytes), netease)
 			decryptECBBytes, encrypted := crypto.AesDecryptECB(decryptECBBytes, []byte(eApiKey))
 			netease.Encrypted = encrypted
 			result := utils.ParseJson(decryptECBBytes)
 			netease.JsonBody = result
-			//fmt.Println(utils.ToJson(result))
 			modified := false
 			code := netease.JsonBody["code"].(json.Number).String()
-			//fmt.Println(netease)
 			if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
 				modified = tryCollect(netease, request)
 			} else if !netease.Web && (code == "401" || code == "512") && strings.EqualFold(netease.Path, "/api/song/like") {
 				modified = tryLike(netease, request)
 			} else if strings.Contains(netease.Path, "url") {
 				modified = tryMatch(netease)
-				//fmt.Println(utils.ToJson(netease.JsonBody))
 			}
 			if processMapJson(netease.JsonBody) || modified {
-				//fmt.Println(utils.ToJson(netease.JsonBody))
 				response.Header.Del("transfer-encoding")
 				response.Header.Del("content-encoding")
 				response.Header.Del("content-length")
@@ -219,11 +214,12 @@ func tryCollect(netease *Netease, request *http.Request) bool {
 		if err != nil {
 			return modified
 		}
-		body, err := network.GetResponseBody(resp, false)
+		defer resp.Body.Close()
+		body, err := network.StealResponseBody(resp)
 		if err != nil {
 			return modified
 		}
-		netease.JsonBody = utils.ParseJson(body)
+		netease.JsonBody = utils.ParseJsonV2(body)
 		modified = true
 	}
 	return modified
@@ -243,11 +239,12 @@ func tryLike(netease *Netease, request *http.Request) bool {
 		if err != nil {
 			return modified
 		}
-		body, err := network.GetResponseBody(resp, false)
+		defer resp.Body.Close()
+		body, err := network.StealResponseBody(resp)
 		if err != nil {
 			return modified
 		}
-		jsonBody := utils.ParseJson(body)
+		jsonBody := utils.ParseJsonV2(body)
 		if utils.Exist("userPoint", jsonBody) && utils.Exist("userId", jsonBody["userPoint"].(common.MapType)) {
 			userId := jsonBody["userPoint"].(common.MapType)["userId"].(json.Number).String()
 			clientRequest.RemoteUrl = "http://" + proxyRemoteHost + "/api/user/playlist?uid=" + userId + "&limit=1"
@@ -255,11 +252,12 @@ func tryLike(netease *Netease, request *http.Request) bool {
 			if err != nil {
 				return modified
 			}
-			body, err = network.GetResponseBody(resp, false)
+			defer resp.Body.Close()
+			body, err = network.StealResponseBody(resp)
 			if err != nil {
 				return modified
 			}
-			jsonBody = utils.ParseJson(body)
+			jsonBody = utils.ParseJsonV2(body)
 			if utils.Exist("playlist", jsonBody) {
 				pid := jsonBody["playlist"].(common.SliceType)[0].(common.MapType)["id"].(json.Number).String()
 				clientRequest.Method = http.MethodPost
@@ -269,11 +267,12 @@ func tryLike(netease *Netease, request *http.Request) bool {
 				if err != nil {
 					return modified
 				}
-				body, err = network.GetResponseBody(resp, false)
+				defer resp.Body.Close()
+				body, err = network.StealResponseBody(resp)
 				if err != nil {
 					return modified
 				}
-				jsonBody = utils.ParseJson(body)
+				jsonBody = utils.ParseJsonV2(body)
 				code := jsonBody["code"].(json.Number).String()
 				if code == "200" || code == "502" {
 					netease.JsonBody = make(common.MapType)
@@ -288,7 +287,7 @@ func tryLike(netease *Netease, request *http.Request) bool {
 	return modified
 }
 func tryMatch(netease *Netease) bool {
-	fmt.Println(netease.Path)
+	//fmt.Println(netease.Path)
 	modified := false
 	jsonBody := netease.JsonBody
 	if value, ok := jsonBody["data"]; ok {
@@ -408,6 +407,7 @@ func calculateSongMd5(songId string, songUrl string) string {
 		fmt.Println(err)
 		return songMd5
 	}
+	defer resp.Body.Close()
 	r := bufio.NewReader(resp.Body)
 	h := md5.New()
 	_, err = io.Copy(h, r)

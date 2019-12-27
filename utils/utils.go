@@ -2,6 +2,7 @@ package utils
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
@@ -9,6 +10,8 @@ import (
 	"fmt"
 	"github.com/json-iterator/go"
 	"golang.org/x/text/width"
+	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +22,30 @@ import (
 
 var JSON = jsoniter.ConfigCompatibleWithStandardLibrary
 
+func UnGzipV2(gzipData io.Reader) (io.Reader, error) {
+	r, err := gzip.NewReader(gzipData)
+	if err != nil {
+		fmt.Println("UnGzipV2 error:", err)
+		return gzipData, err
+	}
+	//defer r.Close()
+	return r, nil
+}
+func UnGzip(gzipData []byte) ([]byte, error) {
+	r, err := gzip.NewReader(bytes.NewReader(gzipData))
+	if err != nil {
+		fmt.Println("UnGzip error:", err)
+		return gzipData, err
+	}
+	defer r.Close()
+	var decryptECBBytes = gzipData
+	decryptECBBytes, err = ioutil.ReadAll(r)
+	if err != nil {
+		fmt.Println("UnGzip")
+		return gzipData, err
+	}
+	return decryptECBBytes, nil
+}
 func FormatMap(data map[string]interface{}) string {
 	format := ""
 	for key, value := range data {
@@ -34,6 +61,13 @@ func ReplaceAll(str string, expr string, replaceStr string) string {
 func ParseJson(data []byte) map[string]interface{} {
 	var result map[string]interface{}
 	d := JSON.NewDecoder(bytes.NewReader(data))
+	d.UseNumber()
+	d.Decode(&result)
+	return result
+}
+func ParseJsonV2(reader io.Reader) map[string]interface{} {
+	var result map[string]interface{}
+	d := JSON.NewDecoder(reader)
 	d.UseNumber()
 	d.Decode(&result)
 	return result

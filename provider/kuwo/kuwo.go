@@ -35,12 +35,13 @@ func SearchSong(key common.MapType) common.Song {
 		fmt.Println(err)
 		return searchSong
 	}
-	body, err := network.GetResponseBody(resp, false)
+	defer resp.Body.Close()
+	body, err := network.StealResponseBody(resp)
 	if err != nil {
 		fmt.Println(err)
 		return searchSong
 	}
-	result := utils.ParseJson(body)
+	result := utils.ParseJsonV2(body)
 	//fmt.Println(utils.ToJson(result))
 	var musicId = ""
 	data, ok := result["data"].(common.MapType)
@@ -104,7 +105,8 @@ func SearchSong(key common.MapType) common.Song {
 			fmt.Println(err)
 			return searchSong
 		}
-		body, err = network.GetResponseBody(resp, false)
+		defer resp.Body.Close()
+		body, err := network.GetResponseBody(resp, false)
 		address := string(body)
 		if strings.Index(address, "http") == 0 {
 			searchSong.Url = address

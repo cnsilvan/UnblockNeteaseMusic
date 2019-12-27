@@ -2,8 +2,8 @@ package network
 
 import (
 	"UnblockNeteaseMusic/common"
+	"UnblockNeteaseMusic/utils"
 	"bytes"
-	"compress/gzip"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -28,6 +28,7 @@ type ClientRequest struct {
 	Body                 io.Reader
 	Cookies              []*http.Cookie
 	Proxy                bool
+	ConnectTimeout       time.Duration
 }
 
 func Request(clientRequest *ClientRequest) (*http.Response, error) {
@@ -39,6 +40,10 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 	body := clientRequest.Body
 	proxy := clientRequest.Proxy
 	cookies := clientRequest.Cookies
+	connectTimeout := clientRequest.ConnectTimeout
+	if connectTimeout == 0 {
+		connectTimeout = 10 * time.Second
+	}
 	var resp *http.Response
 	request, err := http.NewRequest(method, remoteUrl, body)
 	if err != nil {
@@ -58,7 +63,7 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 	tr := http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
+			Timeout:   connectTimeout,
 			KeepAlive: 30 * time.Second,
 			DualStack: true,
 		}).DialContext,
@@ -101,14 +106,31 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 	//fmt.Println(request.URL.String())
 	//fmt.Println(request.Cookies())
 	if err != nil {
-		fmt.Println(request.Method, request.URL.String(), host)
+		//fmt.Println(request.Method, request.URL.String(), host)
 		fmt.Printf("http.Client.Do fail:%v\n", err)
 		return resp, err
 	}
 	return resp, err
 
 }
+func StealResponseBody(resp *http.Response) (io.Reader, error) {
+	encode := resp.Header.Get("Content-Encoding")
+	enableGzip := false
+	if len(encode) > 0 && (strings.Contains(encode, "gzip") || strings.Contains(encode, "deflate")) {
+		enableGzip = true
+	}
+	if enableGzip {
+		resp.Header.Del("Content-Encoding")
+		body, err := utils.UnGzipV2(resp.Body)
+		if err != nil {
+			fmt.Println("read  body fail")
+			return resp.Body, err
+		}
+		return body, err
+	}
+	return resp.Body, nil
 
+}
 func GetResponseBody(resp *http.Response, keepBody bool) ([]byte, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -126,14 +148,10 @@ func GetResponseBody(resp *http.Response, keepBody bool) ([]byte, error) {
 		enableGzip = true
 	}
 	if enableGzip {
-		resp.Header.Del("Content-Encoding")
-		r, err := gzip.NewReader(bytes.NewReader(body))
-		if err != nil {
-			fmt.Println("read gzip body fail")
-			return body, err
+		if !keepBody {
+			resp.Header.Del("Content-Encoding")
 		}
-		defer r.Close()
-		body, err = ioutil.ReadAll(r)
+		body, err = utils.UnGzip(body)
 		if err != nil {
 			fmt.Println("read  body fail")
 			return body, err

@@ -145,6 +145,7 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 				fmt.Println("network.Request error:", err)
 				return
 			}
+			defer response.Body.Close()
 			for name, values := range response.Header {
 				resp.Header()[name] = values
 				//fmt.Println(name,"=",values)
@@ -155,7 +156,7 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 				fmt.Println("io.Copy error:", err)
 				return
 			}
-			defer response.Body.Close()
+
 			//proxy.ServeHTTP(resp, request)
 		}
 	}

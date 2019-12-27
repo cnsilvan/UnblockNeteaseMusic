@@ -26,8 +26,11 @@ func Find(id string) common.Song {
 	fmt.Println("find song info,id:", id)
 	if song, ok := cache.GetSong(id); ok {
 		fmt.Println("hit cache:", utils.ToJson(song))
-		go checkCache(song)
-		return song
+		if checkCache(song) {
+			return song
+		}else{
+			fmt.Println("but cache invalid")
+		}
 	}
 	var songT common.Song
 	songT.Id = id
@@ -44,12 +47,12 @@ func Find(id string) common.Song {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == 200 {
-		body, err2 := network.GetResponseBody(resp, false)
+		body, err2 := network.StealResponseBody(resp)
 		if err2 != nil {
 			fmt.Println("GetResponseBody fail")
 			return songT
 		}
-		oJson := utils.ParseJson(body)
+		oJson := utils.ParseJsonV2(body)
 		if songs, ok := oJson["songs"].(common.SliceType); ok && len(songs) > 0 {
 			song := songs[0]
 			var searchSong = make(common.MapType, 8)
@@ -85,7 +88,7 @@ func Find(id string) common.Song {
 			}
 			//if searchSong["name"] != nil {
 			//	searchSong["name"] = utils.ReplaceAll(searchSong["name"].(string), `\s*cover[:：\s][^）]+）`, "")
-			//	searchSong["name"] = utils.ReplaceAll(searchSong["name"].(string), `\(\s*cover[:：\s][^\)]+\)`, "")
+			//	searchSong["name"] = utils.ReplaceAll(searchSong["name"].(string), `(\s*cover[:：\s][^\)]+)`, "")
 			//}
 			searchSong["artistsName"] = strings.Join(artists, " ")
 			searchSong["keyword"] = searchSong["name"].(string) + " " + searchSong["artistsName"].(string)
@@ -112,10 +115,10 @@ func searchSongFn(key common.MapType) common.Song {
 		id = songId.(string)
 	}
 	var ch = make(chan common.Song)
-	now:=time.Now().UnixNano() / 1e6
+	now := time.Now().UnixNano() / 1e6
 	songs := getSongFromAllSource(key, ch)
 	//fmt.Println(utils.ToJson(songs))
-	fmt.Println("consumed:",(time.Now().UnixNano() / 1e6)-now,"ms")
+	fmt.Println("consumed:", (time.Now().UnixNano()/1e6)-now, "ms")
 	result := common.Song{}
 	result.Size = 0
 	for _, song := range songs {
@@ -212,6 +215,7 @@ func calculateSongInfo(song common.Song) common.Song {
 			fmt.Println("processSong fail:", err)
 			return song
 		}
+		defer resp.Body.Close()
 		if resp.StatusCode > 199 && resp.StatusCode < 300 {
 			if strings.Contains(song.Url, "qq.com") {
 				song.Md5 = resp.Header.Get("server-md5")
@@ -300,9 +304,9 @@ func decodeBitrate(data []byte) int {
 	}
 	return 0
 }
-func checkCache(song common.Song) {
+func checkCache(song common.Song) bool {
 	header := make(http.Header, 1)
-	header["range"] = append(header["range"], "bytes=0-255")
+	header["range"] = append(header["range"], "bytes=0-1")
 	clientRequest := network.ClientRequest{
 		Method:    http.MethodGet,
 		RemoteUrl: song.Url,
@@ -311,10 +315,14 @@ func checkCache(song common.Song) {
 	}
 	resp, err := network.Request(&clientRequest)
 	if err != nil {
-		fmt.Println("processSong fail:", err)
+		fmt.Println("checkCache fail:", err)
+		return false
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		cache.Delete(song.Id)
+		return false
+	} else {
+		return true
 	}
 }
