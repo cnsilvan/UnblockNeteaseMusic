@@ -29,7 +29,7 @@ var rsaPublicKey *rsa.PublicKey
 
 func getRsaPublicKey() (*rsa.PublicKey, error) {
 	var err error = nil
-	if rsaPublicKey.Size() == 0 {
+	if rsaPublicKey==nil {
 		rsaPublicKey, err = crypto.ParsePublicKey(publicKey)
 	}
 	return rsaPublicKey, err
