@@ -12,7 +12,7 @@ var (
 )
 
 func FullVersion() string {
-	return fmt.Sprintf("Version: %6s \nGit commit: %6s \nGo version: %6s \nBuild time: %6s \n",
+	return fmt.Sprintf("Version: %s \nGit commit: %s \nGo version: %s \nBuild time: %s \n",
 		Version, GitCommit, GoVersion, BuildTime)
 }
 func AppVersion() string {

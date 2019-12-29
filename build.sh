@@ -1,4 +1,4 @@
-CurrentVersion=0.1.0
+CurrentVersion=0.1.1
 Project=UnblockNeteaseMusic
 Path="UnblockNeteaseMusic/version"
 GitCommit=$(git rev-parse --short HEAD || echo unsupported)

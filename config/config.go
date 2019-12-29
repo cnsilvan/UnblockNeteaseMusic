@@ -3,6 +3,7 @@ package config
 import (
 	"UnblockNeteaseMusic/common"
 	"UnblockNeteaseMusic/utils"
+	"UnblockNeteaseMusic/version"
 	"flag"
 	"fmt"
 	"os"
@@ -17,6 +18,7 @@ var (
 	CertFile = flag.String("c", "./server.crt", "specify server cert,such as : \"server.crt\"")
 	KeyFile  = flag.String("k", "./server.key", "specify server cert key ,such as : \"server.key\"")
 	Mode     = flag.Int("m", 1, "specify running mode（1:hosts） ,such as : \"1\"")
+	V        = flag.Bool("v", false, "display version info")
 )
 
 func ValidParams() bool {
@@ -27,6 +29,10 @@ func ValidParams() bool {
 		for i := 0; i < flag.NArg(); i++ {
 			fmt.Printf("arg[%d]=%s\n", i, flag.Arg(i))
 		}
+	}
+	if *V {
+		fmt.Println(version.FullVersion())
+		return false
 	}
 	sources := strings.Split(strings.ToLower(*Source), ":")
 	if len(sources) < 1 {
