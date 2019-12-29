@@ -1,6 +1,6 @@
 CurrentVersion=0.1.0
 Project=UnblockNeteaseMusic
-Path="version"
+Path="UnblockNeteaseMusic/version"
 GitCommit=$(git rev-parse --short HEAD || echo unsupported)
 GoVersion=$(go version)
 BuildTime=$(date "+%Y-%m-%d %H:%M:%S")
