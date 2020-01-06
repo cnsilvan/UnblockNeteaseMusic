@@ -1,16 +1,16 @@
 package migu
 
 import (
-	"github.com/cnsilvan/UnblockNeteaseMusic/common"
-	"github.com/cnsilvan/UnblockNeteaseMusic/network"
-	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
-	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"bytes"
 	"crypto/md5"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/network"
+	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"math"
 	"net/http"
 	"net/url"
@@ -29,7 +29,7 @@ var rsaPublicKey *rsa.PublicKey
 
 func getRsaPublicKey() (*rsa.PublicKey, error) {
 	var err error = nil
-	if rsaPublicKey==nil {
+	if rsaPublicKey == nil {
 		rsaPublicKey, err = crypto.ParsePublicKey(publicKey)
 	}
 	return rsaPublicKey, err
@@ -150,10 +150,10 @@ func SearchSong(key common.MapType) common.Song {
 		if ok {
 			playInfo, ok := data["sqPlayInfo"].(common.MapType)
 			if !ok {
-			playInfo, ok = data["hqPlayInfo"].(common.MapType)
-			if !ok {
-				playInfo, ok = data["bqPlayInfo"].(common.MapType)
-			}
+				playInfo, ok = data["hqPlayInfo"].(common.MapType)
+				if !ok {
+					playInfo, ok = data["bqPlayInfo"].(common.MapType)
+				}
 			}
 			if ok {
 				playUrl, ok := playInfo["playUrl"].(string)

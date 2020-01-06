@@ -1,17 +1,17 @@
 package processor
 
 import (
-	"github.com/cnsilvan/UnblockNeteaseMusic/common"
-	"github.com/cnsilvan/UnblockNeteaseMusic/network"
-	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
-	"github.com/cnsilvan/UnblockNeteaseMusic/provider"
-	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"bufio"
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/network"
+	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
+	"github.com/cnsilvan/UnblockNeteaseMusic/provider"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"io"
 	"io/ioutil"
 	"net/http"

@@ -1,11 +1,11 @@
 package config
 
 import (
+	"flag"
+	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"github.com/cnsilvan/UnblockNeteaseMusic/version"
-	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"

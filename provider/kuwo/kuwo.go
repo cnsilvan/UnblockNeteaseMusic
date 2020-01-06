@@ -1,10 +1,10 @@
 package kuwo
 
 import (
+	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/network"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"

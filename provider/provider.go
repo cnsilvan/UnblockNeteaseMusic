@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/cache"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/network"
@@ -8,7 +9,6 @@ import (
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider/kuwo"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider/migu"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -28,7 +28,7 @@ func Find(id string) common.Song {
 		fmt.Println("hit cache:", utils.ToJson(song))
 		if checkCache(song) {
 			return song
-		}else{
+		} else {
 			fmt.Println("but cache invalid")
 		}
 	}

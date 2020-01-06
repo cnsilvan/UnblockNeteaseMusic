@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/cnsilvan/UnblockNeteaseMusic/config"
 	"fmt"
+	"github.com/cnsilvan/UnblockNeteaseMusic/config"
 	"os"
 	"os/signal"
 	"syscall"
@@ -28,12 +28,12 @@ func main() {
 		fmt.Println("mode=", *config.Mode)
 		if host.InitHosts() == nil {
 			//go func() {
-				//	//	// terminal: $ go tool pprof -http=:8081 http://localhost:6060/debug/pprof/heap
-				//	//	// web:
-				//	//	// 1、http://localhost:8081/ui
-				//	//	// 2、http://localhost:6060/debug/charts
-				//	//	// 3、http://localhost:6060/debug/pprof
-				//	//	fmt.Println("启动 6060...")
+			//	//	// terminal: $ go tool pprof -http=:8081 http://localhost:6060/debug/pprof/heap
+			//	//	// web:
+			//	//	// 1、http://localhost:8081/ui
+			//	//	// 2、http://localhost:6060/debug/charts
+			//	//	// 3、http://localhost:6060/debug/pprof
+			//	//	fmt.Println("启动 6060...")
 			//	log.Println(http.ListenAndServe("0.0.0.0:6060", nil))
 			//}()
 			signalChan := make(chan os.Signal, 1)
@@ -48,7 +48,7 @@ func main() {
 				}
 				exit <- true
 			}()
-			signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT,syscall.SIGSEGV)
+			signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGSEGV)
 			proxy.InitProxy()
 			<-exit
 			fmt.Println("exiting UnblockNeteaseMusic")

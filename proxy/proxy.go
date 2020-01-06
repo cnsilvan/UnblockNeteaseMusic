@@ -1,14 +1,14 @@
 package proxy
 
 import (
+	"bytes"
+	"crypto/tls"
+	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/config"
 	"github.com/cnsilvan/UnblockNeteaseMusic/network"
 	"github.com/cnsilvan/UnblockNeteaseMusic/processor"
 	"github.com/cnsilvan/UnblockNeteaseMusic/version"
-	"bytes"
-	"crypto/tls"
-	"fmt"
 	"io"
 	"net"
 	"net/http"

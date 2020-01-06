@@ -1,11 +1,11 @@
 package network
 
 import (
-	"github.com/cnsilvan/UnblockNeteaseMusic/common"
-	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"io"
 	"io/ioutil"
 	"net"
