@@ -1,6 +1,7 @@
 CurrentVersion=0.1.1
-Project=UnblockNeteaseMusic
-Path="UnblockNeteaseMusic/version"
+Project=github.com/cnsilvan/UnblockNeteaseMusic
+Path="$Project/version"
+ExecName="UnblockNeteaseMusic"
 GitCommit=$(git rev-parse --short HEAD || echo unsupported)
 GoVersion=$(go version)
 BuildTime=$(date "+%Y-%m-%d %H:%M:%S")
@@ -8,7 +9,7 @@ platforms=("darwin/amd64")
 buildGo() {
   GOOS=$1
   GOARCH=$2
-  output_name=$Project
+  output_name=$ExecName
   if [ $GOOS = "windows" ]; then
     output_name+='.exe'
   fi

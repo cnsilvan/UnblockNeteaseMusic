@@ -1,13 +1,13 @@
 package provider
 
 import (
-	"UnblockNeteaseMusic/cache"
-	"UnblockNeteaseMusic/common"
-	"UnblockNeteaseMusic/network"
-	kugou "UnblockNeteaseMusic/provider/kugou"
-	"UnblockNeteaseMusic/provider/kuwo"
-	"UnblockNeteaseMusic/provider/migu"
-	"UnblockNeteaseMusic/utils"
+	"github.com/cnsilvan/UnblockNeteaseMusic/cache"
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/network"
+	kugou "github.com/cnsilvan/UnblockNeteaseMusic/provider/kugou"
+	"github.com/cnsilvan/UnblockNeteaseMusic/provider/kuwo"
+	"github.com/cnsilvan/UnblockNeteaseMusic/provider/migu"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"fmt"
 	"net/http"
 	"net/url"

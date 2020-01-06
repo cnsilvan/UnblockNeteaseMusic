@@ -1,9 +1,9 @@
 package kuwo
 
 import (
-	"UnblockNeteaseMusic/common"
-	"UnblockNeteaseMusic/network"
-	"UnblockNeteaseMusic/utils"
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/network"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"bytes"
 	"encoding/json"
 	"fmt"

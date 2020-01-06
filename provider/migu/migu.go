@@ -1,10 +1,10 @@
 package migu
 
 import (
-	"UnblockNeteaseMusic/common"
-	"UnblockNeteaseMusic/network"
-	"UnblockNeteaseMusic/processor/crypto"
-	"UnblockNeteaseMusic/utils"
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/network"
+	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"bytes"
 	"crypto/md5"
 	"crypto/rsa"
@@ -148,13 +148,13 @@ func SearchSong(key common.MapType) common.Song {
 		//fmt.Println(data)
 		data, ok := data["data"].(common.MapType)
 		if ok {
-			//playInfo, ok := data["sqPlayInfo"].(common.MapType)
-			//if !ok {
-			playInfo, ok := data["hqPlayInfo"].(common.MapType)
+			playInfo, ok := data["sqPlayInfo"].(common.MapType)
+			if !ok {
+			playInfo, ok = data["hqPlayInfo"].(common.MapType)
 			if !ok {
 				playInfo, ok = data["bqPlayInfo"].(common.MapType)
 			}
-			//}
+			}
 			if ok {
 				playUrl, ok := playInfo["playUrl"].(string)
 				if ok && strings.Index(playUrl, "http") == 0 {

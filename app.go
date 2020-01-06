@@ -1,16 +1,16 @@
 package main
 
 import (
-	"UnblockNeteaseMusic/config"
+	"github.com/cnsilvan/UnblockNeteaseMusic/config"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	//_ "github.com/mkevac/debugcharts" // 可选，添加后可以查看几个实时图表数据
-	"UnblockNeteaseMusic/host"
-	"UnblockNeteaseMusic/proxy"
-	"UnblockNeteaseMusic/version"
+	"github.com/cnsilvan/UnblockNeteaseMusic/host"
+	"github.com/cnsilvan/UnblockNeteaseMusic/proxy"
+	"github.com/cnsilvan/UnblockNeteaseMusic/version"
 	//_ "net/http/pprof" // 必须，引入 pprof 模块
 )
 

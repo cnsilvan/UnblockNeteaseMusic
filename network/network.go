@@ -1,8 +1,8 @@
 package network
 
 import (
-	"UnblockNeteaseMusic/common"
-	"UnblockNeteaseMusic/utils"
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"bytes"
 	"crypto/tls"
 	"fmt"

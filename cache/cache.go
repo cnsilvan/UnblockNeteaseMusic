@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"sync"
 )
 
