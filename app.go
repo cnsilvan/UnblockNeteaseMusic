@@ -41,10 +41,12 @@ func main() {
 			go func() {
 				sig := <-signalChan
 				fmt.Println("\nreceive signal:", sig)
-				fmt.Println("restoreHosts ing...")
-				err := host.RestoreHosts()
-				if err != nil {
-					fmt.Println("restoreHosts error:", err)
+				if *config.Mode == 1 {
+					fmt.Println("restoreHosts...")
+					err := host.RestoreHosts()
+					if err != nil {
+						fmt.Println("restoreHosts error:", err)
+					}
 				}
 				exit <- true
 			}()

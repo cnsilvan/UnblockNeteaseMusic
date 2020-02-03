@@ -15,7 +15,7 @@ buildGo() {
   fi
   echo "Building($GOOS/$GOARCH)..."
   TargetDir=bin/$GOOS/$GOARCH
-  env GOOS=$GOOS GOARCH=$GOARCH go build -ldflags "-X '$Path.Version=$CurrentVersion' -X '$Path.BuildTime=$BuildTime' -X '$Path.GoVersion=$GoVersion' -X '$Path.GitCommit=$GitCommit' -w -s" -o $TargetDir/$output_name
+  env GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build -ldflags "-X '$Path.Version=$CurrentVersion' -X '$Path.BuildTime=$BuildTime' -X '$Path.GoVersion=$GoVersion' -X '$Path.GitCommit=$GitCommit' -w -s" -o $TargetDir/$output_name
   if [ $? -ne 0 ]; then
     echo 'An error has occurred! Aborting the script execution...'
     exit 1
