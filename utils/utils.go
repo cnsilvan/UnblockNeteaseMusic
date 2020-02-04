@@ -243,7 +243,7 @@ func ParseSingerKeyWord(data string) []string {
 	var keyword = make(map[string]int)
 	if len(data) > 0 {
 		data = strings.TrimSpace(strings.ToUpper(data))
-		substr := []string{"、"}
+		substr := []string{"、",","}
 		parseKeyWord(data, substr, keyword)
 
 	}

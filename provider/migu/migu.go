@@ -47,9 +47,7 @@ func SearchSong(key common.MapType) common.Song {
 	header["referer"] = append(header["referer"], "http://music.migu.cn/")
 	clientRequest := network.ClientRequest{
 		Method: http.MethodGet,
-		RemoteUrl: "http://pd.musicapp.migu.cn/MIGUM2.0/v1.0/content/search_all.do?text=" + keyword +
-			"&pageNo=1&pageSize=20&searchSwitch=" +
-			"{\"song\":1,\"album\":0,\"singer\":0,\"tagSong\":0,\"mvSong\":0,\"songlist\":0,\"bestShow\":0}",
+		RemoteUrl: "http://m.music.migu.cn/migu/remoting/scr_search_tag?keyword="+keyword+"&type=2&rows=20&pgc=1",
 		Host:  "pd.musicapp.migu.cn",
 		Proxy: false,
 	}
@@ -72,9 +70,9 @@ func SearchSong(key common.MapType) common.Song {
 	result := utils.ParseJsonV2(body)
 	//fmt.Println(utils.ToJson(result))
 	var copyrightId = ""
-	data, ok := result["songResultData"].(common.MapType)
+	data, ok := result["musics"].(common.SliceType)
 	if ok {
-		list, ok := data["result"].([]interface{})
+		list:= data
 		if ok && len(list) > 0 {
 			listLength := len(list)
 			for index, matched := range list {
@@ -82,9 +80,8 @@ func SearchSong(key common.MapType) common.Song {
 				if ok {
 					cId, ok := miguSong["copyrightId"].(string)
 					if ok {
-						singerName, singerNameOk := miguSong["singers"].([]interface{})
-						songName, songNameOk := miguSong["name"].(string)
-						singerNames := ""
+						singerName, singerNameOk := miguSong["singerName"].(string)
+						songName, songNameOk := miguSong["songName"].(string)
 						var songNameSores float32 = 0.0
 						if songNameOk {
 							songNameKeys := utils.ParseSongNameKeyWord(songName)
@@ -94,15 +91,7 @@ func SearchSong(key common.MapType) common.Song {
 						}
 						var artistsNameSores float32 = 0.0
 						if singerNameOk {
-							var artNames []string
-							for _, art := range singerName {
-								artN, ok := art.(common.MapType)["name"].(string)
-								if ok {
-									artNames = append(artNames, strings.TrimSpace(artN))
-								}
-							}
-							singerNames = strings.Join(artNames, "、")
-							artistKeys := utils.ParseSingerKeyWord(singerNames)
+							artistKeys := utils.ParseSingerKeyWord(singerName)
 							//fmt.Println("migu:artistKeys:", strings.Join(artistKeys, "、"))
 							artistsNameSores = utils.CalMatchScores(searchArtistsName, artistKeys)
 							//fmt.Println("migu:artistsNameSores:", artistsNameSores)
@@ -113,8 +102,8 @@ func SearchSong(key common.MapType) common.Song {
 							searchSong.MatchScore = songMatchScore
 							copyrightId = cId
 							searchSong.Name = songName
-							searchSong.Artist = singerNames
-							searchSong.Artist = strings.ReplaceAll(singerNames, " ", "")
+							searchSong.Artist = singerName
+							searchSong.Artist = strings.ReplaceAll(singerName, " ", "")
 						}
 					}
 
