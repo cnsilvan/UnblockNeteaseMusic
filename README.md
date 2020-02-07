@@ -1,6 +1,6 @@
 # UnblockNeteaseMusic
 解锁网易云音乐客户端变灰歌曲 (Golang)
-
+[配套LUCI](https://github.com/cnsilvan/luci-app-unblockneteasemusic)
 # 特性
 * 就是快
 * 较为精准的歌曲匹配
