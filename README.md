@@ -42,6 +42,6 @@ sudo ./UnblockNeteaseMusic
 
 已知：windows版本的网易云音乐需要在应用内设置代理 127.0.0.1 端口 80
 
-咪咕源貌似电信宽带无法使用
+咪咕源貌似部分宽带无法使用
 # 感谢
 [NodeJs版本](https://github.com/nondanee/UnblockNeteaseMusic)以及为它贡献的所有coder
