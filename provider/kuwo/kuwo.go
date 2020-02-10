@@ -56,19 +56,24 @@ func SearchSong(key common.MapType) common.Song {
 					if ok {
 						singerName, singerNameOk := kowoSong["artist"].(string)
 						songName, songNameOk := kowoSong["name"].(string)
+						if strings.Contains(songName, "伴奏") && !strings.Contains(searchSongName, "伴奏") {
+							continue
+						}
 						var songNameSores float32 = 0.0
 						if songNameOk {
-							songNameKeys := utils.ParseSongNameKeyWord(songName)
-							//fmt.Println("songNameKeys:", strings.Join(songNameKeys, "、"))
-							songNameSores = utils.CalMatchScores(searchSongName, songNameKeys)
+							//songNameKeys := utils.ParseSongNameKeyWord(songName)
+							////fmt.Println("songNameKeys:", strings.Join(songNameKeys, "、"))
+							//songNameSores = utils.CalMatchScores(searchSongName, songNameKeys)
 							//fmt.Println("songNameSores:", songNameSores)
+							songNameSores=utils.CalMatchScoresV2(searchSongName,songName,"songName")
 						}
 						var artistsNameSores float32 = 0.0
 						if singerNameOk {
 							singerName = strings.ReplaceAll(singerName, "&", "、")
-							artistKeys := utils.ParseSingerKeyWord(singerName)
-							//fmt.Println("kuwo:artistKeys:", strings.Join(artistKeys, "、"))
-							artistsNameSores = utils.CalMatchScores(searchArtistsName, artistKeys)
+							//artistKeys := utils.ParseSingerKeyWord(singerName)
+							////fmt.Println("kuwo:artistKeys:", strings.Join(artistKeys, "、"))
+							//artistsNameSores = utils.CalMatchScores(searchArtistsName, artistKeys)
+							artistsNameSores=utils.CalMatchScoresV2(searchArtistsName,singerName,"singerName")
 							//fmt.Println("kuwo:artistsNameSores:", artistsNameSores)
 						}
 						songMatchScore := songNameSores*0.6 + artistsNameSores*0.4

@@ -120,6 +120,39 @@ func GenRandomBytes(size int) (blk []byte, err error) {
 	_, err = rand.Read(blk)
 	return
 }
+
+func CalMatchScoresV2(beMatchedData string, beSplitedData string, matchType string) float32 {
+	var score float32 = 0.0
+	beMatchedData = width.Narrow.String(strings.ToUpper(strings.TrimSpace(beMatchedData)))
+	beSplitedData = width.Narrow.String(strings.ToUpper(strings.TrimSpace(beSplitedData)))
+	orginData := beMatchedData
+	if len(beMatchedData) < len(beSplitedData) {
+		orginData = beSplitedData
+		beSplitedData = beMatchedData
+		beMatchedData = orginData
+
+	}
+	//fmt.Printf("1:orginData:%s,beMatchedData:%s,beSplitedData:%s\n",orginData,beMatchedData,beSplitedData)
+	var keyword []string
+	if matchType == "songName" {
+		keyword = ParseSongNameKeyWord(beSplitedData)
+	} else if matchType == "singerName" {
+		keyword = ParseSingerKeyWord(beSplitedData)
+	}
+
+	for _, key := range keyword {
+		beMatchedData = strings.Replace(beMatchedData, key, "", 1)
+	}
+	//fmt.Printf("2:orginData:%s,beMatchedData:%s,beSplitedData:%s\n",orginData,beMatchedData,beSplitedData)
+	if beMatchedData == orginData {
+		return 0.0
+	}
+	//beMatchedData = ReplaceAll(beMatchedData, "[`~!@#$%^&*()_\\-+=|{}':;',\\[\\]\\\\.<>/?~！@#￥%……&*（）——+|{}【】‘；：”“’。，、？]", "")
+	//beMatchedData = strings.ReplaceAll(beMatchedData, " ", "")
+	score = 1 - (float32(len(beMatchedData)) / (float32(len(orginData))))
+	return score
+}
+
 func CalMatchScores(beMatchedData string, keyword []string) float32 {
 	var score float32 = 0.0
 	beMatchedData = width.Narrow.String(strings.ToUpper(beMatchedData))
@@ -243,7 +276,7 @@ func ParseSingerKeyWord(data string) []string {
 	var keyword = make(map[string]int)
 	if len(data) > 0 {
 		data = strings.TrimSpace(strings.ToUpper(data))
-		substr := []string{"、",","}
+		substr := []string{"、", ","," ","､"}
 		parseKeyWord(data, substr, keyword)
 
 	}
