@@ -99,7 +99,10 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 		request.Header.Set("accept", "application/json, text/plain, */*")
 		request.Header.Set("accept-encoding", "gzip, deflate")
 		request.Header.Set("accept-language", "zh-CN,zh;q=0.9")
-		request.Header.Set("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36")
+		if len(request.Header.Get("user-agent")) == 0 {
+			request.Header.Set("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36")
+
+		}
 
 	}
 	resp, err = c.Do(request)
