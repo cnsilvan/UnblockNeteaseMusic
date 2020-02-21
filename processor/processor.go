@@ -62,6 +62,7 @@ type Netease struct {
 	JsonBody  map[string]interface{}
 	Web       bool
 	Encrypted bool
+	Forward   bool
 }
 
 func RequestBefore(request *http.Request) *Netease {
@@ -78,17 +79,23 @@ func RequestBefore(request *http.Request) *Netease {
 			pad = requestBody
 		}
 		if netease.Path == "/api/linux/forward" {
+			netease.Forward = true
 			requestBodyH := make([]byte, len(requestBody))
 			length, _ := hex.Decode(requestBodyH, requestBody[8:len(requestBody)-len(pad)])
 			decryptECBBytes, _ := crypto.AesDecryptECB(requestBodyH[:length], []byte(linuxApiKey))
 			var result common.MapType
 			result = utils.ParseJson(decryptECBBytes)
-			urlM, ok := result["url"].(common.MapType)
-			if ok && utils.Exist("url", result) && utils.Exist("path", urlM) {
-				netease.Path = urlM["path"].(string)
+			//fmt.Println(utils.ToJson(result))
+			urlM, ok := result["url"].(string)
+			if ok {
+				netease.Path = urlM
 			}
-			netease.Params = utils.ParseJson(bytes.NewBufferString(result["params"].(string)).Bytes())
-			fmt.Println("forward")
+			params, ok := result["params"].(common.MapType)
+			if ok {
+				netease.Params = params
+			}
+
+			//fmt.Println("forward")
 			//fmt.Printf("path:%s \nparams:%s\n", netease.Path, netease.Params)
 		} else {
 			requestBodyH := make([]byte, len(requestBody))
@@ -100,7 +107,9 @@ func RequestBefore(request *http.Request) *Netease {
 			netease.Params = utils.ParseJson(bytes.NewBufferString(data[1]).Bytes())
 			//fmt.Printf("path:%s \nparams:%s\n", netease.Path, netease.Params)
 		}
-
+		netease.Path = strings.ReplaceAll(netease.Path, "https://music.163.com", "")
+		netease.Path = strings.ReplaceAll(netease.Path, "http://music.163.com", "")
+		netease.Path = utils.ReplaceAll(netease.Path, `\/\d*$`, "")
 	} else if strings.Index(netease.Path, "/weapi/") == 0 || strings.Index(netease.Path, "/api/") == 0 {
 		request.Header.Set("X-Real-IP", "118.66.66.66")
 		netease.Web = true
@@ -110,7 +119,7 @@ func RequestBefore(request *http.Request) *Netease {
 	} else if strings.Contains(netease.Path, "package") {
 
 	}
-
+	//fmt.Println(utils.ToJson(netease))
 	return netease
 }
 func Request(request *http.Request, remoteUrl string) (*http.Response, error) {
@@ -145,17 +154,30 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				decryptECBBytes, _ = utils.UnGzip(decryptECBBytes)
 			}
 			//fmt.Println(string(decryptECBBytes), netease)
-			decryptECBBytes, encrypted := crypto.AesDecryptECB(decryptECBBytes, []byte(eApiKey))
+			aeskey := eApiKey
+			if netease.Forward {
+				aeskey = linuxApiKey
+			}
+			decryptECBBytes, encrypted := crypto.AesDecryptECB(decryptECBBytes, []byte(aeskey))
 			netease.Encrypted = encrypted
 			result := utils.ParseJson(decryptECBBytes)
 			netease.JsonBody = result
+
+			//fmt.Println(utils.ToJson(netease))
 			modified := false
-			code := netease.JsonBody["code"].(json.Number).String()
+			codeN, ok := netease.JsonBody["code"].(json.Number)
+			code := "200"
+			if ok {
+				code = codeN.String()
+			}
 			if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
+				//fmt.Println("tryCollect")
 				modified = tryCollect(netease, request)
 			} else if !netease.Web && (code == "401" || code == "512") && strings.EqualFold(netease.Path, "/api/song/like") {
+				//fmt.Println("tryLike")
 				modified = tryLike(netease, request)
 			} else if strings.Contains(netease.Path, "url") {
+				//fmt.Println("tryMatch")
 				modified = tryMatch(netease)
 			}
 			if processMapJson(netease.JsonBody) || modified {
@@ -168,7 +190,7 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				//fmt.Println(netease)
 				//fmt.Println(string(modifiedJson))
 				if netease.Encrypted {
-					modifiedJson = crypto.AesEncryptECB(modifiedJson, []byte(eApiKey))
+					modifiedJson = crypto.AesEncryptECB(modifiedJson, []byte(aeskey))
 				}
 				response.Body = ioutil.NopCloser(bytes.NewBuffer(modifiedJson))
 			} else {
@@ -287,7 +309,6 @@ func tryLike(netease *Netease, request *http.Request) bool {
 	return modified
 }
 func tryMatch(netease *Netease) bool {
-	//fmt.Println(netease.Path)
 	modified := false
 	jsonBody := netease.JsonBody
 	if value, ok := jsonBody["data"]; ok {

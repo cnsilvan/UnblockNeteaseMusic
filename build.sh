@@ -1,4 +1,4 @@
-CurrentVersion=0.1.4
+CurrentVersion=0.1.5
 Project=github.com/cnsilvan/UnblockNeteaseMusic
 Path="$Project/version"
 ExecName="UnblockNeteaseMusic"
