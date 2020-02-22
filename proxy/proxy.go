@@ -19,9 +19,31 @@ import (
 
 type HttpHandler struct{}
 
+var localhost = map[string]int{}
+
 func InitProxy() {
 	fmt.Println("-------------------Init Proxy-------------------")
 	address := "0.0.0.0:"
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		panic(err)
+	}
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				localhost[ipnet.IP.String()] = 1
+			}
+			if ipnet.IP.To16() != nil {
+				localhost[ipnet.IP.To16().String()] = 1
+			}
+		}
+	}
+	var localhostKey []string
+	for k, _ := range localhost {
+		localhostKey = append(localhostKey, k)
+	}
+	fmt.Println("Http Proxy:")
+	fmt.Println(strings.Join(localhostKey, " , "))
 	go startTlsServer(address+strconv.Itoa(*config.TLSPort), *config.CertFile, *config.KeyFile, &HttpHandler{})
 	go startServer(address+strconv.Itoa(*config.Port), &HttpHandler{})
 }
@@ -47,7 +69,14 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 	if len(request.URL.Scheme) > 0 {
 		scheme = request.URL.Scheme + "://"
 	}
-	if strings.Contains(hostStr, "localhost") || strings.Contains(hostStr, "127.0.0.1") || strings.Contains(hostStr, "0.0.0.0") || (len(path) > 1 && strings.Count(path, "/") > 1 && bytes.EqualFold(left, right)) {
+	infinite := false
+	for k, _ := range localhost {
+		if strings.Contains(hostStr, k) {
+			infinite = true
+			break
+		}
+	}
+	if infinite || strings.Contains(hostStr, "localhost") || strings.Contains(hostStr, "127.0.0.1") || strings.Contains(hostStr, "0.0.0.0") || (len(path) > 1 && strings.Count(path, "/") > 1 && bytes.EqualFold(left, right)) {
 		//cause infinite loop
 		requestURI = scheme + request.Host
 		if bytes.EqualFold(left, right) {
@@ -162,6 +191,11 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 	}
 }
 func proxyConnectLocalhost(rw http.ResponseWriter, req *http.Request) {
+	fmt.Printf("Local Received request %s %s %s\n",
+		req.Method,
+		req.Host,
+		req.RemoteAddr,
+	)
 	hij, ok := rw.(http.Hijacker)
 	if !ok {
 		fmt.Println("HTTP Server does not support hijacking")
