@@ -345,7 +345,7 @@ func searchGreySongs(data common.SliceType, netease *Netease) bool {
 }
 func searchGreySong(data common.MapType, netease *Netease) bool {
 	modified := false
-	if data["url"] == nil {
+	if data["url"] == nil || data["freeTrialInfo"] != nil {
 		data["flag"] = 0
 		songId := data["id"].(json.Number).String()
 		song := provider.Find(songId)
