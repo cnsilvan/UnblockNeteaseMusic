@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/config"
 	"github.com/cnsilvan/UnblockNeteaseMusic/network"
 	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider"
@@ -387,7 +388,13 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 				//fmt.Println(uri.Path)
 				//fmt.Println()
 				//data["url"] = uri.Scheme + "://" + uri.Host + uri.EscapedPath()
-				data["url"] = uri.String()
+				//data["url"] = uri.String()
+				if *config.EndPoint{
+					data["url"]="https://music.163.com/unblockmusic/"+uri.String()
+				}else{
+					data["url"] = uri.String()
+				}
+				//fmt.Println(data["url"])
 			}
 			if len(song.Md5) > 0 {
 				data["md5"] = song.Md5

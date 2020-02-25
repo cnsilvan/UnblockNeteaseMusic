@@ -26,6 +26,7 @@ func main() {
 		fmt.Println("certFile=", *config.CertFile)
 		fmt.Println("keyFile=", *config.KeyFile)
 		fmt.Println("mode=", *config.Mode)
+		fmt.Println("endPoint=", *config.EndPoint)
 		if host.InitHosts() == nil {
 			//go func() {
 			//	//	// terminal: $ go tool pprof -http=:8081 http://localhost:6060/debug/pprof/heap

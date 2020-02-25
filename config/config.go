@@ -19,6 +19,7 @@ var (
 	KeyFile  = flag.String("k", "./server.key", "specify server cert key ,such as : \"server.key\"")
 	Mode     = flag.Int("m", 1, "specify running mode（1:hosts） ,such as : \"1\"")
 	V        = flag.Bool("v", false, "display version info")
+	EndPoint = flag.Bool("e", false, "replace song url")
 )
 
 func ValidParams() bool {
