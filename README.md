@@ -23,18 +23,21 @@ sudo ./UnblockNeteaseMusic
 具体参数说明
 ```
 ./UnblockNeteaseMusic -h
-  -c string
-        specify server cert,such as : "server.crt" (default "./server.crt")
-  -k string
-        specify server cert key ,such as : "server.key" (default "./server.key")
-  -m int
-        specify running mode（1:hosts） ,such as : "1" (default 1)
-  -o string
-        specify server source,such as : "kuwo:kugou" (default "kuwo:kugou")
-  -p int
-        specify server port,such as : "80" (default 80)
-  -sp int
-        specify server tls port,such as : "443" (default 443)
+    -c string
+      	specify server cert,such as : "server.crt" (default "./server.crt")
+    -e	replace song url
+    -k string
+      	specify server cert key ,such as : "server.key" (default "./server.key")
+    -m int
+      	specify running mode（1:hosts） ,such as : "1" (default 1)
+    -o string
+      	specify server source,such as : "kuwo:kugou" (default "kuwo:kugou")
+    -p int
+      	specify server port,such as : "80" (default 80)
+    -sp int
+      	specify server tls port,such as : "443" (default 443)
+    -v	display version info
+
 ```
 
 重要提示：
