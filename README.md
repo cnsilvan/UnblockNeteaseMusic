@@ -43,7 +43,7 @@ sudo ./UnblockNeteaseMusic
 
 重要提示：
 
-本应用获取music.163.com的IP是通过本机直接查询，非nodejs版本请求music.httpdns.c.163.com获取
+应用通过本机dns获取域名ip，请注意本地hosts文件
 
 已知：
 1. windows版本的网易云音乐需要在应用内 设置代理 Http地址为「HttpProxy」下任意地址 端口 80
