@@ -51,6 +51,7 @@ sudo ./UnblockNeteaseMusic
 1. windows版本的网易云音乐需要在应用内 设置代理 Http地址为「HttpProxy」下任意地址 端口 80
 2. Linux 客户端 (1.2 版本以上需要在终端启动网易云客户端时增加 --ignore-certificate-errors 参数)
 3. ios客户端需要信任根证书且运行UnblockNeteaseMusic时 加上 -e 参数
-4. 咪咕源貌似部分宽带无法使用
+4. android客户端使用咪咕源下载歌曲时需要运行UnblockNeteaseMusic时 加上 -e 参数（其他情况无法使用时，尝试加上 -e 参数）
+5. 咪咕源貌似部分宽带无法使用
 # 感谢
 [NodeJs版本](https://github.com/nondanee/UnblockNeteaseMusic)以及为它贡献的所有coder
