@@ -53,12 +53,6 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 	if !clientRequest.ForbiddenEncodeQuery {
 		request.URL.RawQuery = request.URL.Query().Encode()
 	}
-	if header != nil {
-		request.Header = header
-	}
-	for _, value := range cookies {
-		request.AddCookie(value)
-	}
 	c := http.Client{}
 	tr := http.Transport{
 		Proxy: http.ProxyFromEnvironment,
@@ -84,35 +78,68 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 			request.URL.Scheme = "http"
 		}
 	}
-	if proxy && (request.URL.Scheme == "https" || request.TLS != nil) {
-		tr.TLSClientConfig = &tls.Config{}
-		// verify music.163.com certificate
-		tr.TLSClientConfig.ServerName = request.Host //it doesn't contain any IP SANs
-		// redirect to music.163.com will need verify self
+	if request.URL.Scheme == "https" || request.TLS != nil {
 		if _, ok := common.HostDomain[request.Host]; ok {
+			tr.TLSClientConfig = &tls.Config{}
+			// verify music.163.com certificate
+			tr.TLSClientConfig.ServerName = request.Host //it doesn't contain any IP SANs
+			// redirect to music.163.com will need verify self
 			tr.TLSClientConfig.InsecureSkipVerify = true
+			c.Transport = &tr
 		}
-
 	}
-	c.Transport = &tr
-	if !proxy {
-		request.Header.Set("accept", "application/json, text/plain, */*")
-		request.Header.Set("accept-encoding", "gzip, deflate")
-		request.Header.Set("accept-language", "zh-CN,zh;q=0.9")
-		if len(request.Header.Get("user-agent")) == 0 {
-			request.Header.Set("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36")
-
+	if proxy { //keep headers&cookies for Direct
+		if header != nil {
+			request.Header = header
 		}
-
+		for _, value := range cookies {
+			request.AddCookie(value)
+		}
 	}
+	accept := "application/json, text/plain, */*"
+	acceptEncoding := "gzip, deflate"
+	acceptLanguage := "zh-CN,zh;q=0.9"
+	userAgent := "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+
+	if header != nil {
+		accept = header.Get("accept")
+		if len(accept) == 0 {
+			accept = "application/json, text/plain, */*"
+		}
+		acceptEncoding = header.Get("accept-encoding")
+		if len(acceptEncoding) == 0 {
+			acceptEncoding = "gzip, deflate"
+		}
+		acceptLanguage = header.Get("accept-language")
+		if len(acceptLanguage) == 0 {
+			acceptLanguage = "zh-CN,zh;q=0.9"
+		}
+		userAgent = header.Get("user-agent")
+		if len(userAgent) == 0 {
+			userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+		}
+		Range := header.Get("range")
+		if len(Range) > 0 {
+			request.Header.Set("range", Range)
+		}
+	}
+
+	request.Header.Set("accept", accept)
+	request.Header.Set("accept-encoding", acceptEncoding)
+	request.Header.Set("accept-language", acceptLanguage)
+	request.Header.Set("user-agent", userAgent)
+
 	resp, err = c.Do(request)
-	//fmt.Println(request.URL.String())
-	//fmt.Println(request.Cookies())
+
 	if err != nil {
 		//fmt.Println(request.Method, request.URL.String(), host)
 		fmt.Printf("http.Client.Do fail:%v\n", err)
 		return resp, err
 	}
+	if host == "tyst.migu.cn" && resp.StatusCode == 200 && len(request.Header.Get("range")) > 0 {
+		resp.StatusCode = 206
+	}
+
 	return resp, err
 
 }

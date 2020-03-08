@@ -39,7 +39,7 @@ func Find(id string) common.Song {
 		RemoteUrl: "https://" + common.HostDomain["music.163.com"] + "/api/song/detail?ids=[" + id + "]",
 		Host:      "music.163.com",
 		Header:    nil,
-		Proxy:     true,
+		Proxy:     false,
 	}
 	resp, err := network.Request(&clientRequest)
 	if err != nil {
@@ -208,7 +208,7 @@ func calculateSongInfo(song common.Song) common.Song {
 			Method:    http.MethodGet,
 			RemoteUrl: song.Url,
 			Header:    header,
-			Proxy:     false,
+			Proxy:     true,
 		}
 		resp, err := network.Request(&clientRequest)
 		if err != nil {
@@ -311,7 +311,7 @@ func checkCache(song common.Song) bool {
 		Method:    http.MethodGet,
 		RemoteUrl: song.Url,
 		Header:    header,
-		Proxy:     false,
+		Proxy:     true,
 	}
 	resp, err := network.Request(&clientRequest)
 	if err != nil {

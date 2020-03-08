@@ -31,7 +31,7 @@ func SearchSong(key common.MapType) common.Song {
 		RemoteUrl: "http://songsearch.kugou.com/song_search_v2?keyword=" + keyword + "&page=1",
 		Host:      "songsearch.kugou.com",
 		Cookies:   cookies,
-		Proxy:     false,
+		Proxy:     true,
 	}
 	resp, err := network.Request(&clientRequest)
 	if err != nil {

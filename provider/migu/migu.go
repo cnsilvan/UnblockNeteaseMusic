@@ -127,7 +127,7 @@ func SearchSong(key common.MapType) common.Song {
 			RemoteUrl:            "http://music.migu.cn/v3/api/music/audioPlayer/getPlayInfo?dataType=2&" + encrypt("{\"copyrightId\":\""+copyrightId+"\"}"),
 			Host:                 "music.migu.cn",
 			Header:               header,
-			Proxy:                false,
+			Proxy:                true,
 			ForbiddenEncodeQuery: true, //dataType first must
 		}
 		//fmt.Println(clientRequest.RemoteUrl)

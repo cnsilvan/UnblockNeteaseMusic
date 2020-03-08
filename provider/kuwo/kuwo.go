@@ -30,7 +30,7 @@ func SearchSong(key common.MapType) common.Song {
 		RemoteUrl: "http://www.kuwo.cn/api/www/search/searchMusicBykeyWord?key=" + keyword + "&pn=1&rn=30",
 		Host:      "kuwo.cn",
 		Header:    header,
-		Proxy:     false,
+		Proxy:     true,
 	}
 	resp, err := network.Request(&clientRequest)
 	if err != nil {
@@ -115,7 +115,7 @@ func SearchSong(key common.MapType) common.Song {
 			RemoteUrl:            "http://mobi.kuwo.cn/mobi.s?f=kuwo&q=" + base64.StdEncoding.EncodeToString(Encrypt([]byte("corp=kuwo&p2p=1&type=convert_url2&sig=0&format=flac|mp3&rid="+musicId))),
 			Host:                 "mobi.kuwo.cn",
 			Header:               header,
-			Proxy:                false,
+			Proxy:                true,
 		}
 		//fmt.Println(clientRequest.RemoteUrl)
 		resp, err := network.Request(&clientRequest)

@@ -64,8 +64,9 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 			Host:                 realURI.Host,
 			Header:               request.Header,
 			Body:                 request.Body,
+			Cookies:              request.Cookies(),
 			ForbiddenEncodeQuery: true,
-			Proxy:                true,
+			Proxy:                false,
 		})
 		if err != nil {
 			fmt.Println("network.Request error:", err)
@@ -201,7 +202,8 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 					Host:      request.Host,
 					Header:    request.Header,
 					Body:      request.Body,
-					Proxy:     false,
+					Cookies:   request.Cookies(),
+					Proxy:     true,
 				})
 				if err != nil {
 					fmt.Println("network.Request error:", err)

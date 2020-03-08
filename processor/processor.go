@@ -232,6 +232,7 @@ func tryCollect(netease *Netease, request *http.Request) bool {
 			RemoteUrl: "http://" + proxyRemoteHost + "/api/playlist/manipulate/tracks",
 			Header:    request.Header,
 			Body:      ioutil.NopCloser(bytes.NewBufferString("trackIds=[" + trackId + "," + trackId + "]&pid=" + pid + "&op=" + op)),
+			Proxy:     true,
 		}
 		resp, err := network.Request(&clientRequest)
 		if err != nil {
@@ -257,7 +258,9 @@ func tryLike(netease *Netease, request *http.Request) bool {
 			Method:    http.MethodGet,
 			Host:      "music.163.com",
 			RemoteUrl: "http://" + proxyRemoteHost + "/api/v1/user/info",
-			Header:    request.Header}
+			Header:    request.Header,
+			Proxy:     true,
+		}
 		resp, err := network.Request(&clientRequest)
 		if err != nil {
 			return modified
@@ -389,9 +392,9 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 				//fmt.Println()
 				//data["url"] = uri.Scheme + "://" + uri.Host + uri.EscapedPath()
 				//data["url"] = uri.String()
-				if *config.EndPoint{
-					data["url"]="http://music.163.com/unblockmusic/"+uri.String()
-				}else{
+				if *config.EndPoint {
+					data["url"] = "http://music.163.com/unblockmusic/" + uri.String()
+				} else {
 					data["url"] = uri.String()
 				}
 				//fmt.Println(data["url"])
