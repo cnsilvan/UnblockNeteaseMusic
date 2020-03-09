@@ -50,8 +50,8 @@ func InitProxy() {
 }
 func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request) {
 	requestURI := request.RequestURI
-	if strings.Contains(requestURI, "/unblockmusic/") {
-		realMusicUrl := strings.ReplaceAll(requestURI, "/unblockmusic/", "")
+	if i := strings.Index(requestURI, "/unblockmusic/"); len(requestURI) > 0 && i != -1 {
+		realMusicUrl := requestURI[i+len("/unblockmusic/"):]
 		//fmt.Printf("Download:%s(%s)\n", realMusicUrl, request.Method)
 		realURI, err := url.Parse(realMusicUrl)
 		if err != nil {

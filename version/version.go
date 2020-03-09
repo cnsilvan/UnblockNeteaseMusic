@@ -1,6 +1,9 @@
 package version
 
-import "fmt"
+import (
+	"fmt"
+	"runtime"
+)
 
 var (
 	Version string
@@ -13,7 +16,10 @@ var (
 
 func FullVersion() string {
 	return fmt.Sprintf("Version: %s \nGit commit: %s \nGo version: %s \nBuild time: %s \n",
-		Version, GitCommit, GoVersion, BuildTime)
+		Version, GitCommit, GetGoVersion(), BuildTime)
+}
+func GetGoVersion() string {
+	return fmt.Sprint(GoVersion,"(runtime: ", runtime.Version(), " ", runtime.GOOS, "/", runtime.GOARCH,")")
 }
 func AppVersion() string {
 	return fmt.Sprintf(`
