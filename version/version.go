@@ -9,9 +9,10 @@ var (
 	Version string
 
 	//will be overwritten automatically by the build system
-	GitCommit string
-	GoVersion string
-	BuildTime string
+	GitCommit       string
+	GoVersion       string
+	BuildTime       string
+	ExGoVersionInfo string
 )
 
 func FullVersion() string {
@@ -19,7 +20,7 @@ func FullVersion() string {
 		Version, GitCommit, GetGoVersion(), BuildTime)
 }
 func GetGoVersion() string {
-	return fmt.Sprint(GoVersion,"(runtime: ", runtime.Version(), " ", runtime.GOOS, "/", runtime.GOARCH,")")
+	return fmt.Sprint(GoVersion, "(runtime: ", runtime.Version(), " ", runtime.GOOS, "/", runtime.GOARCH, ExGoVersionInfo, ")")
 }
 func AppVersion() string {
 	return fmt.Sprintf(`
