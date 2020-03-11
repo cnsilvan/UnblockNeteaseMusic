@@ -76,6 +76,11 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 		for name, values := range response.Header {
 			resp.Header()[name] = values
 		}
+		//fix ios 7.0.20
+		resp.Header().Del("Keep-Alive")
+		if response.StatusCode == 200 && (len(request.Header.Get("range")) > 0 || len(response.Header.Get("content-range")) > 0) {
+			response.StatusCode = 206
+		}
 		resp.WriteHeader(response.StatusCode)
 		_, err = io.Copy(resp, response.Body)
 		if err != nil {

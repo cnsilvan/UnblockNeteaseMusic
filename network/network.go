@@ -136,9 +136,6 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 		fmt.Printf("http.Client.Do fail:%v\n", err)
 		return resp, err
 	}
-	if host == "tyst.migu.cn" && resp.StatusCode == 200 && len(request.Header.Get("range")) > 0 {
-		resp.StatusCode = 206
-	}
 
 	return resp, err
 
