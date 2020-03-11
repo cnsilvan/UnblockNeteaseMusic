@@ -28,7 +28,7 @@ func SearchSong(key common.MapType) common.Song {
 	clientRequest := network.ClientRequest{
 		Method:    http.MethodGet,
 		RemoteUrl: "http://www.kuwo.cn/api/www/search/searchMusicBykeyWord?key=" + keyword + "&pn=1&rn=30",
-		Host:      "kuwo.cn",
+		Host:      "www.kuwo.cn",
 		Header:    header,
 		Proxy:     true,
 	}
