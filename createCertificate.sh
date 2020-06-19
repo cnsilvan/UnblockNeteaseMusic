@@ -16,9 +16,8 @@ openssl genrsa -out "${serverKey}" 2048
 openssl req -new -sha256 -key "${serverKey}" -out "${serverCsr}" -subj "/C=CN/L=Hangzhou/O=NetEase (Hangzhou) Network Co., Ltd/OU=IT Dept./CN=*.music.163.com"
 # 使用 CA 签发服务器证书
 touch "${extFile}"
-echo "authorityKeyIdentifier=keyid,issuer
-basicConstraints=CA:FALSE
+echo "basicConstraints=CA:FALSE
 keyUsage=digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
-extendedKeyUsage=serverAuth,OCSPSigning
+extendedKeyUsage=serverAuth
 subjectAltName=DNS:music.163.com,DNS:*.music.163.com" >"${extFile}"
 openssl x509 -req -extfile "${extFile}" -days 825 -in "${serverCsr}" -CA "${caCrt}" -CAkey "${caKey}" -CAcreateserial -out "${serverCrt}"
