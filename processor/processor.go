@@ -393,7 +393,7 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 				//data["url"] = uri.Scheme + "://" + uri.Host + uri.EscapedPath()
 				//data["url"] = uri.String()
 				if *config.EndPoint {
-					data["url"] = "http://music.163.com/unblockmusic/" + uri.String()
+					data["url"] = "https://music.163.com/unblockmusic/" + uri.String()
 				} else {
 					data["url"] = uri.String()
 				}
