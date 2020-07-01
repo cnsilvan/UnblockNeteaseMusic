@@ -394,6 +394,31 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 				//data["url"] = uri.String()
 				if *config.EndPoint {
 					data["url"] = "https://music.163.com/unblockmusic/" + uri.String()
+
+					//if os is Windows, use http not https.
+					if headerIntf, ok := netease.Params["header"]; ok {
+						if headerStr, ok := headerIntf.(string); ok {
+							header := utils.ParseJson([]byte(headerStr))
+							if osIntf, ok := header["os"]; ok {
+								if os, ok := osIntf.(string); ok {
+									if os == "pc" {
+										data["url"] = "http://music.163.com/unblockmusic/" + uri.String()
+									}
+								}
+							}
+						}
+
+						if header, ok := headerIntf.(map[string]interface{}); ok {
+							if osIntf, ok := header["os"]; ok {
+								if os, ok := osIntf.(string); ok {
+									if os == "pc" {
+										data["url"] = "http://music.163.com/unblockmusic/" + uri.String()
+									}
+								}
+							}
+						}
+					}
+
 				} else {
 					data["url"] = uri.String()
 				}
