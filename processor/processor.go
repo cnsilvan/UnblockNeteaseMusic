@@ -45,6 +45,8 @@ var (
 		"/batch":                             1,
 		"/api/batch":                         1,
 		"/api/v1/search/get":                 1,
+		"/api/v1/search/song/get":            1,
+		"/api/search/complex/get":            1,
 		"/api/cloudsearch/pc":                1,
 		"/api/v1/playlist/manipulate/tracks": 1,
 		"/api/song/like":                     1,
@@ -55,6 +57,8 @@ var (
 		"/api/cloudsearch/get/web":           1,
 		"/api/song/enhance/privilege":        1,
 	}
+	// "header key" : { "contain value":"protocol"}
+	ReRulesUnderHeader = map[string]map[string]string{"os": {"pc": "https"}}
 )
 
 type Netease struct {
@@ -164,7 +168,9 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			result := utils.ParseJson(decryptECBBytes)
 			netease.JsonBody = result
 
-			//fmt.Println(utils.ToJson(netease))
+			//if strings.Contains(netease.Path,"batch"){
+			// fmt.Println(utils.ToJson(netease))
+			//}
 			modified := false
 			codeN, ok := netease.JsonBody["code"].(json.Number)
 			code := "200"
@@ -172,13 +178,10 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				code = codeN.String()
 			}
 			if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
-				//fmt.Println("tryCollect")
 				modified = tryCollect(netease, request)
 			} else if !netease.Web && (code == "401" || code == "512") && strings.EqualFold(netease.Path, "/api/song/like") {
-				//fmt.Println("tryLike")
 				modified = tryLike(netease, request)
 			} else if strings.Contains(netease.Path, "url") {
-				//fmt.Println("tryMatch")
 				modified = tryMatch(netease)
 			}
 			if processMapJson(netease.JsonBody) || modified {
@@ -393,32 +396,7 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 				//data["url"] = uri.Scheme + "://" + uri.Host + uri.EscapedPath()
 				//data["url"] = uri.String()
 				if *config.EndPoint {
-					data["url"] = "https://music.163.com/unblockmusic/" + uri.String()
-
-					//if os is Windows, use http not https.
-					if headerIntf, ok := netease.Params["header"]; ok {
-						if headerStr, ok := headerIntf.(string); ok {
-							header := utils.ParseJson([]byte(headerStr))
-							if osIntf, ok := header["os"]; ok {
-								if os, ok := osIntf.(string); ok {
-									if os == "pc" {
-										data["url"] = "http://music.163.com/unblockmusic/" + uri.String()
-									}
-								}
-							}
-						}
-
-						if header, ok := headerIntf.(map[string]interface{}); ok {
-							if osIntf, ok := header["os"]; ok {
-								if os, ok := osIntf.(string); ok {
-									if os == "pc" {
-										data["url"] = "http://music.163.com/unblockmusic/" + uri.String()
-									}
-								}
-							}
-						}
-					}
-
+					data["url"] = generateEndpoint(netease) + uri.String()
 				} else {
 					data["url"] = uri.String()
 				}
@@ -539,4 +517,36 @@ func processMapJson(jsonMap common.MapType) bool {
 		}
 	}
 	return needModify
+}
+
+//if os is Windows, use http not https.
+func generateEndpoint(netease *Netease) string {
+	protocol := "https"
+	endPoint := "://music.163.com/unblockmusic/"
+	if headerIntf, ok := netease.Params["header"]; ok {
+		header := make(map[string]interface{})
+		if headerStr, ok := headerIntf.(string); ok {
+			header = utils.ParseJson([]byte(headerStr))
+		} else if header, ok = headerIntf.(map[string]interface{}); ok {
+
+		}
+
+		if len(header) > 0 {
+			for headerKey, rules := range ReRulesUnderHeader {
+				if valueI, ok := header[headerKey]; ok {
+					if value, ok := valueI.(string); ok {
+						for containValue, protocolValue := range rules {
+							//fmt.Println("rules:",containValue,protocolValue)
+							//fmt.Println("compare value:",strings.ToLower(value), strings.ToLower(containValue))
+							if strings.Contains(strings.ToLower(value), strings.ToLower(containValue)) {
+								protocol = protocolValue
+							}
+						}
+					}
+				}
+			}
+		}
+
+	}
+	return protocol + endPoint
 }
