@@ -58,7 +58,7 @@ var (
 		"/api/song/enhance/privilege":        1,
 	}
 	// "header key" : { "contain value":"protocol"}
-	ReRulesUnderHeader = map[string]map[string]string{"os": {"pc": "https"}}
+	ReRulesUnderHeader = map[string]map[string]string{"os": {"pc": "http"}}
 )
 
 type Netease struct {
@@ -523,6 +523,7 @@ func processMapJson(jsonMap common.MapType) bool {
 func generateEndpoint(netease *Netease) string {
 	protocol := "https"
 	endPoint := "://music.163.com/unblockmusic/"
+	//fmt.Println(fmt.Sprintf("%+v\n", netease.Params))
 	if headerIntf, ok := netease.Params["header"]; ok {
 		header := make(map[string]interface{})
 		if headerStr, ok := headerIntf.(string); ok {
