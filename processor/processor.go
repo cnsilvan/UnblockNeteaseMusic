@@ -581,6 +581,6 @@ func generateEndpoint(netease *Netease) string {
 		}
 	}
 	netease.EndPoint = protocol + endPoint
-	fmt.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.EndPoint)))
+	//fmt.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.EndPoint)))
 	return netease.EndPoint
 }
