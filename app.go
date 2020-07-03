@@ -27,6 +27,7 @@ func main() {
 		fmt.Println("keyFile=", *config.KeyFile)
 		fmt.Println("mode=", *config.Mode)
 		fmt.Println("endPoint=", *config.EndPoint)
+		fmt.Println("forceBestQuality=", *config.ForceBestQuality)
 		if host.InitHosts() == nil {
 			//go func() {
 			//	//	// terminal: $ go tool pprof -http=:8081 http://localhost:6060/debug/pprof/heap

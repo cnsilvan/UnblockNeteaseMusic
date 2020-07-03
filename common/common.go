@@ -17,6 +17,34 @@ type Song struct {
 	Artist     string
 	MatchScore float32
 }
+type MusicQuality int32
+
+const (
+	Standard MusicQuality = 0
+	Higher   MusicQuality = 1
+	ExHigh   MusicQuality = 2
+	Lossless MusicQuality = 3
+)
+
+type SearchMusic struct {
+	Quality MusicQuality
+	Id      string
+}
+
+func (m MusicQuality) String() string {
+	switch m {
+	case Standard:
+		return "Standard(0)"
+	case Higher:
+		return "Higher(1)"
+	case ExHigh:
+		return "ExHigh(2)"
+	case Lossless:
+		return "Lossless(3)"
+	default:
+		return "UNKNOWN"
+	}
+}
 
 var (
 	ProxyIp     = "127.0.0.1"

@@ -1,26 +1,30 @@
 package cache
 
 import (
+	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"sync"
 )
 
 var cache sync.Map
 
-func Put(key interface{}, value interface{}) {
-	cache.Store(key, value)
+//func Put(key string, value interface{}) {
+//	cache.Store(key, value)
+//}
+//func Get(key interface{}) (interface{}, bool) {
+//	return cache.Load(key)
+//}
+func PutSong(key common.SearchMusic, value common.Song) {
+	cache.Store(fmt.Sprintf("%+v", key), value)
 }
-func Get(key interface{}) (interface{}, bool) {
-	return cache.Load(key)
-}
-func GetSong(key interface{}) (common.Song, bool) {
+func GetSong(key common.SearchMusic) (common.Song, bool) {
 	var song common.Song
-	if value, ok := cache.Load(key); ok {
+	if value, ok := cache.Load(fmt.Sprintf("%+v", key)); ok {
 		song = value.(common.Song)
 		return song, ok
 	}
 	return song, false
 }
-func Delete(key interface{}) {
+func Delete(key string) {
 	cache.Delete(key)
 }

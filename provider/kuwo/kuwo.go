@@ -109,10 +109,30 @@ func SearchSong(key common.MapType) common.Song {
 		//}
 		//header := make(http.Header, 1)
 		header["user-agent"] = append(header["user-agent"], "okhttp/3.10.0")
+		format := "flac|mp3"
+		br:=""
+		if musicQuality, ok := key["musicQuality"]; ok {
+			if q, ok := musicQuality.(common.MusicQuality); ok {
+				switch q {
+				case common.Standard:
+					format = "mp3"
+					br="&br=128kmp3"
+				case common.Higher:
+					format = "mp3"
+					br="&br=192kmp3"
+				case common.ExHigh:
+					format = "mp3"
+				case common.Lossless:
+					format = "flac|mp3"
+				default:
+					format = "flac|mp3"
+				}
+			}
+		}
 		clientRequest := network.ClientRequest{
 			Method:               http.MethodGet,
 			ForbiddenEncodeQuery: true,
-			RemoteUrl:            "http://mobi.kuwo.cn/mobi.s?f=kuwo&q=" + base64.StdEncoding.EncodeToString(Encrypt([]byte("corp=kuwo&p2p=1&type=convert_url2&sig=0&format=flac|mp3&rid="+musicId))),
+			RemoteUrl:            "http://mobi.kuwo.cn/mobi.s?f=kuwo&q=" + base64.StdEncoding.EncodeToString(Encrypt([]byte("corp=kuwo&p2p=1&type=convert_url2&sig=0&format="+format+"&rid="+musicId+br))),
 			Host:                 "mobi.kuwo.cn",
 			Header:               header,
 			Proxy:                true,
@@ -127,6 +147,7 @@ func SearchSong(key common.MapType) common.Song {
 		body, err := network.GetResponseBody(resp, false)
 		reg := regexp.MustCompile(`http[^\s$"]+`)
 		address := string(body)
+		//fmt.Println(address)
 		params := reg.FindStringSubmatch(address)
 		//fmt.Println(params)
 		if len(params) > 0 {

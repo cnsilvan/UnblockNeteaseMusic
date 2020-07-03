@@ -46,10 +46,10 @@ func SearchSong(key common.MapType) common.Song {
 	header["origin"] = append(header["origin"], "http://music.migu.cn/")
 	header["referer"] = append(header["referer"], "http://music.migu.cn/")
 	clientRequest := network.ClientRequest{
-		Method: http.MethodGet,
-		RemoteUrl: "http://m.music.migu.cn/migu/remoting/scr_search_tag?keyword="+keyword+"&type=2&rows=20&pgc=1",
-		Host:  "pd.musicapp.migu.cn",
-		Proxy: false,
+		Method:    http.MethodGet,
+		RemoteUrl: "http://m.music.migu.cn/migu/remoting/scr_search_tag?keyword=" + keyword + "&type=2&rows=20&pgc=1",
+		Host:      "pd.musicapp.migu.cn",
+		Proxy:     false,
 	}
 	//fmt.Println(clientRequest.RemoteUrl)
 	resp, err := network.Request(&clientRequest)
@@ -72,7 +72,7 @@ func SearchSong(key common.MapType) common.Song {
 	var copyrightId = ""
 	data, ok := result["musics"].(common.SliceType)
 	if ok {
-		list:= data
+		list := data
 		if ok && len(list) > 0 {
 			listLength := len(list)
 			for index, matched := range list {
@@ -90,7 +90,7 @@ func SearchSong(key common.MapType) common.Song {
 							//songNameKeys := utils.ParseSongNameKeyWord(songName)
 							////fmt.Println("songNameKeys:", strings.Join(songNameKeys, "、"))
 							//songNameSores = utils.CalMatchScores(searchSongName, songNameKeys)
-							songNameSores=utils.CalMatchScoresV2(searchSongName,songName,"songName")
+							songNameSores = utils.CalMatchScoresV2(searchSongName, songName, "songName")
 							//fmt.Println("songNameSores:", songNameSores)
 						}
 						var artistsNameSores float32 = 0.0
@@ -98,7 +98,7 @@ func SearchSong(key common.MapType) common.Song {
 							//artistKeys := utils.ParseSingerKeyWord(singerName)
 							////fmt.Println("migu:artistKeys:", strings.Join(artistKeys, "、"))
 							//artistsNameSores = utils.CalMatchScores(searchArtistsName, artistKeys)
-							artistsNameSores=utils.CalMatchScoresV2(searchArtistsName,singerName,"singerName")
+							artistsNameSores = utils.CalMatchScoresV2(searchArtistsName, singerName, "singerName")
 							//fmt.Println("migu:artistsNameSores:", artistsNameSores)
 						}
 						songMatchScore := songNameSores*0.6 + artistsNameSores*0.4
@@ -109,6 +109,7 @@ func SearchSong(key common.MapType) common.Song {
 							searchSong.Name = songName
 							searchSong.Artist = singerName
 							searchSong.Artist = strings.ReplaceAll(singerName, " ", "")
+							//fmt.Println(utils.ToJson(miguSong))
 						}
 					}
 
@@ -120,11 +121,33 @@ func SearchSong(key common.MapType) common.Song {
 
 		}
 	}
-
+	type MiguFormat struct {
+		CopyrightId string `json:"copyrightId"`
+		Type        int    `json:"type"`
+	}
+	formatType := 1
+	if musicQuality, ok := key["musicQuality"]; ok {
+		if q, ok := musicQuality.(common.MusicQuality); ok {
+			switch q {
+			case common.Standard:
+				formatType = 1
+			case common.Higher:
+				formatType = 1
+			case common.ExHigh:
+				formatType = 2
+			case common.Lossless:
+				formatType = 3
+			default:
+				formatType = 3
+			}
+		}
+	}
+	en:=utils.ToJson(&MiguFormat{CopyrightId: copyrightId, Type: formatType})
+	//fmt.Println(en)
 	if len(copyrightId) > 0 {
 		clientRequest := network.ClientRequest{
 			Method:               http.MethodGet,
-			RemoteUrl:            "http://music.migu.cn/v3/api/music/audioPlayer/getPlayInfo?dataType=2&" + encrypt("{\"copyrightId\":\""+copyrightId+"\"}"),
+			RemoteUrl:            "http://music.migu.cn/v3/api/music/audioPlayer/getPlayInfo?dataType=2&" + encrypt(en),
 			Host:                 "music.migu.cn",
 			Header:               header,
 			Proxy:                true,
@@ -138,24 +161,33 @@ func SearchSong(key common.MapType) common.Song {
 		}
 		defer resp.Body.Close()
 		body, err = network.StealResponseBody(resp)
-		data := utils.ParseJsonV2(body)
-		//fmt.Println(data)
-		data, ok := data["data"].(common.MapType)
-		if ok {
-			playInfo, ok := data["sqPlayInfo"].(common.MapType)
-			if !ok {
-				playInfo, ok = data["hqPlayInfo"].(common.MapType)
-				if !ok {
-					playInfo, ok = data["bqPlayInfo"].(common.MapType)
-				}
+		//data := utils.ParseJsonV2(body)
+		type MiguResult struct {
+			PlayUrl string
+			//FormatId string
+			//SalePrice string
+			//BizType string
+			//BizCode string
+			//AuditionsLength int64
+		}
+		type MiguResponse struct {
+			ReturnCode string
+			Msg        string
+			Data       *MiguResult
+		}
+		miguResponse := &MiguResponse{}
+		d := utils.JSON.NewDecoder(body)
+		d.UseNumber()
+		err = d.Decode(miguResponse)
+		//fmt.Println(utils.ToJson(miguResponse))
+		if err != nil {
+			fmt.Println(err)
+		} else if miguResponse.Data!=nil{
+			if strings.Index(miguResponse.Data.PlayUrl, "http") == 0 {
+				searchSong.Url = miguResponse.Data.PlayUrl
+				return searchSong
 			}
-			if ok {
-				playUrl, ok := playInfo["playUrl"].(string)
-				if ok && strings.Index(playUrl, "http") == 0 {
-					searchSong.Url = playUrl
-					return searchSong
-				}
-			}
+
 		}
 	}
 	return searchSong

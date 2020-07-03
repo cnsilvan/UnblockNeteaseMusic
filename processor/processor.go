@@ -13,6 +13,7 @@ import (
 	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
+	"golang.org/x/text/width"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -57,17 +58,17 @@ var (
 		"/api/cloudsearch/get/web":           1,
 		"/api/song/enhance/privilege":        1,
 	}
-	// "header key" : { "contain value":"protocol"}
-	ReRulesUnderHeader = map[string]map[string]string{"os": {"pc": "http"}}
 )
 
 type Netease struct {
-	Path      string
-	Params    map[string]interface{}
-	JsonBody  map[string]interface{}
-	Web       bool
-	Encrypted bool
-	Forward   bool
+	Path         string
+	Params       map[string]interface{}
+	JsonBody     map[string]interface{}
+	Web          bool
+	Encrypted    bool
+	Forward      bool
+	EndPoint     string
+	MusicQuality common.MusicQuality
 }
 
 func RequestBefore(request *http.Request) *Netease {
@@ -125,6 +126,7 @@ func RequestBefore(request *http.Request) *Netease {
 
 	}
 	//fmt.Println(utils.ToJson(netease))
+	unifiedMusicQuality(netease)
 	return netease
 }
 func Request(request *http.Request, remoteUrl string) (*http.Response, error) {
@@ -355,12 +357,18 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 	if data["url"] == nil || data["freeTrialInfo"] != nil {
 		data["flag"] = 0
 		songId := data["id"].(json.Number).String()
-		song := provider.Find(songId)
+		searchMusic := common.SearchMusic{Id: songId, Quality: netease.MusicQuality}
+		song := provider.Find(searchMusic)
 		haveSongMd5 := false
 		if song.Size > 0 {
 			modified = true
 			if index := strings.LastIndex(song.Url, "."); index != -1 {
 				songType := song.Url[index+1:]
+				songType = width.Narrow.String(songType)
+				if len(songType) > 5 && strings.Contains(songType, "?") {
+					songType = songType[0:strings.Index(songType, "?")]
+					//fmt.Println(songType)
+				}
 				if songType == "mp3" || songType == "flac" || songType == "ape" || songType == "wav" || songType == "aac" || songType == "mp4" {
 					data["type"] = songType
 				} else {
@@ -391,16 +399,11 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 				fmt.Println("url.Parse error:", song.Url)
 				data["url"] = song.Url
 			} else {
-				//fmt.Println(uri.Path)
-				//fmt.Println()
-				//data["url"] = uri.Scheme + "://" + uri.Host + uri.EscapedPath()
-				//data["url"] = uri.String()
 				if *config.EndPoint {
 					data["url"] = generateEndpoint(netease) + uri.String()
 				} else {
 					data["url"] = uri.String()
 				}
-				//fmt.Println(data["url"])
 			}
 			if len(song.Md5) > 0 {
 				data["md5"] = song.Md5
@@ -421,16 +424,16 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 			data["code"] = 200
 			if strings.Contains(netease.Path, "download") { //calculate the file md5
 				if !haveSongMd5 {
-					data["md5"] = calculateSongMd5(songId, song.Url)
+					data["md5"] = calculateSongMd5(searchMusic, song.Url)
 				}
 			} else if !haveSongMd5 {
-				go calculateSongMd5(songId, song.Url)
+				go calculateSongMd5(searchMusic, song.Url)
 			}
 		}
 	}
 	return modified
 }
-func calculateSongMd5(songId string, songUrl string) string {
+func calculateSongMd5(music common.SearchMusic, songUrl string) string {
 	songMd5 := ""
 	clientRequest := network.ClientRequest{
 		Method:    http.MethodGet,
@@ -450,7 +453,7 @@ func calculateSongMd5(songId string, songUrl string) string {
 		return songMd5
 	}
 	songMd5 = hex.EncodeToString(h.Sum(nil))
-	provider.UpdateCacheMd5(songId, songMd5)
+	provider.UpdateCacheMd5(music, songMd5)
 	//fmt.Println("calculateSongMd5 songId:", songId, ",songUrl:", songUrl, ",md5:", songMd5)
 	return songMd5
 }
@@ -519,35 +522,65 @@ func processMapJson(jsonMap common.MapType) bool {
 	return needModify
 }
 
-//if os is Windows, use http not https.
+func unifiedMusicQuality(netease *Netease) {
+	//fmt.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.Params)))
+	netease.MusicQuality = common.Lossless
+	if !*config.ForceBestQuality {
+		if levelParam, ok := netease.Params["level"]; ok {
+			if level, ok := levelParam.(string); ok {
+				level = strings.ToLower(level)
+				if strings.Contains(level, "lossless") {
+					netease.MusicQuality = common.Lossless
+				} else if strings.Contains(level, "exhigh") {
+					netease.MusicQuality = common.ExHigh
+				} else if strings.Contains(level, "higher") {
+					netease.MusicQuality = common.Higher
+				} else if strings.Contains(level, "standard") {
+					netease.MusicQuality = common.Standard
+				}
+			}
+		} else if brParam, ok := netease.Params["br"]; ok {
+			if br, ok := brParam.(string); ok {
+				br = strings.ToLower(br)
+				if strings.Contains(br, "999000") {
+					netease.MusicQuality = common.Lossless
+				} else if strings.Contains(br, "320000") {
+					netease.MusicQuality = common.ExHigh
+				} else if strings.Contains(br, "192000") {
+					netease.MusicQuality = common.Higher
+				} else if strings.Contains(br, "128000") {
+					netease.MusicQuality = common.Standard
+				}
+			}
+		}
+		//fmt.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.MusicQuality)))
+	}
+}
 func generateEndpoint(netease *Netease) string {
 	protocol := "https"
 	endPoint := "://music.163.com/unblockmusic/"
-	//fmt.Println(fmt.Sprintf("%+v\n", netease.Params))
-	if headerIntf, ok := netease.Params["header"]; ok {
+	if headerParam, ok := netease.Params["header"]; ok {
 		header := make(map[string]interface{})
-		if headerStr, ok := headerIntf.(string); ok {
+		if headerStr, ok := headerParam.(string); ok {
 			header = utils.ParseJson([]byte(headerStr))
-		} else if header, ok = headerIntf.(map[string]interface{}); ok {
+		} else if header, ok = headerParam.(map[string]interface{}); ok {
 
 		}
-
 		if len(header) > 0 {
-			for headerKey, rules := range ReRulesUnderHeader {
-				if valueI, ok := header[headerKey]; ok {
-					if value, ok := valueI.(string); ok {
-						for containValue, protocolValue := range rules {
-							//fmt.Println("rules:",containValue,protocolValue)
-							//fmt.Println("compare value:",strings.ToLower(value), strings.ToLower(containValue))
-							if strings.Contains(strings.ToLower(value), strings.ToLower(containValue)) {
-								protocol = protocolValue
-							}
-						}
-					}
+			if headerValue, ok := header["os"]; ok {
+				if os, ok := headerValue.(string); ok && strings.Contains(strings.ToLower(os), "pc") {
+					protocol = "http"
 				}
 			}
 		}
 
 	}
-	return protocol + endPoint
+	if osParam, ok := netease.Params["os"]; ok {
+		if os, ok := osParam.(string); ok && strings.Contains(strings.ToLower(os), "pc") {
+			protocol = "http"
+		}
+	}
+	netease.EndPoint = protocol + endPoint
+	fmt.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.EndPoint)))
+	return netease.EndPoint
 }

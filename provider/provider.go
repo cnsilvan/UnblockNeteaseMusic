@@ -16,15 +16,15 @@ import (
 	"time"
 )
 
-func UpdateCacheMd5(songId string, songMd5 string) {
-	if song, ok := cache.GetSong(songId); ok {
-		song.Md5 = songMd5
-		cache.Put(songId, song)
+func UpdateCacheMd5(music common.SearchMusic, md5 string) {
+	if song, ok := cache.GetSong(music); ok {
+		song.Md5 = md5
+		cache.PutSong(music, song)
 	}
 }
-func Find(id string) common.Song {
-	fmt.Println("find song info,id:", id)
-	if song, ok := cache.GetSong(id); ok {
+func Find(music common.SearchMusic) common.Song {
+	fmt.Println(fmt.Sprintf("find song info :%+v", music))
+	if song, ok := cache.GetSong(music); ok {
 		fmt.Println("hit cache:", utils.ToJson(song))
 		if checkCache(song) {
 			return song
@@ -33,10 +33,10 @@ func Find(id string) common.Song {
 		}
 	}
 	var songT common.Song
-	songT.Id = id
+	songT.Id = music.Id
 	clientRequest := network.ClientRequest{
 		Method:    http.MethodGet,
-		RemoteUrl: "https://" + common.HostDomain["music.163.com"] + "/api/song/detail?ids=[" + id + "]",
+		RemoteUrl: "https://" + common.HostDomain["music.163.com"] + "/api/song/detail?ids=[" + songT.Id + "]",
 		Host:      "music.163.com",
 		Header:    nil,
 		Proxy:     false,
@@ -56,7 +56,7 @@ func Find(id string) common.Song {
 		if songs, ok := oJson["songs"].(common.SliceType); ok && len(songs) > 0 {
 			song := songs[0]
 			var searchSong = make(common.MapType, 8)
-			searchSong["songId"] = id
+			searchSong["songId"] = songT.Id
 			var artists []string
 			switch song.(type) {
 			case common.MapType:
@@ -93,7 +93,7 @@ func Find(id string) common.Song {
 			searchSong["artistsName"] = strings.Join(artists, " ")
 			searchSong["keyword"] = searchSong["name"].(string) + " " + searchSong["artistsName"].(string)
 			fmt.Println("search song:" + searchSong["keyword"].(string))
-			songT = searchSongFn(searchSong)
+			songT = searchSongFn(searchSong, music)
 			fmt.Println(utils.ToJson(songT))
 			return songT
 
@@ -105,7 +105,7 @@ func Find(id string) common.Song {
 	}
 }
 
-func searchSongFn(key common.MapType) common.Song {
+func searchSongFn(key common.MapType, music common.SearchMusic) common.Song {
 	id := "0"
 	searchSongName := key["name"].(string)
 	searchSongName = strings.ToUpper(searchSongName)
@@ -114,6 +114,7 @@ func searchSongFn(key common.MapType) common.Song {
 	if songId, ok := key["songId"]; ok {
 		id = songId.(string)
 	}
+	key["musicQuality"] = music.Quality
 	var ch = make(chan common.Song)
 	now := time.Now().UnixNano() / 1e6
 	songs := getSongFromAllSource(key, ch)
@@ -142,7 +143,7 @@ func searchSongFn(key common.MapType) common.Song {
 	if id != "0" {
 		result.Id = id
 		if len(result.Url) > 0 {
-			cache.Put(id, result)
+			cache.PutSong(music, result)
 		}
 	}
 	return result
@@ -239,7 +240,8 @@ func calculateSongInfo(song common.Song) common.Song {
 				song.Size, _ = strconv.ParseInt(size, 10, 64)
 			}
 			if song.Br == 0 {
-				if resp.Header.Get("content-length") == "8192" {
+				//fmt.Println(utils.LogInterface(resp.Header))
+				if resp.Header.Get("content-length") == "8192" || resp.ContentLength == 8192 {
 					body, err := network.GetResponseBody(resp, false)
 					if err != nil {
 						fmt.Println("song GetResponseBody error:", err)
@@ -289,6 +291,17 @@ func decodeBitrate(data []byte) int {
 		pointer = 10 + size
 	}
 
+	for i := 0; i < len(data); i++ { //fix migu mp3
+		if data[pointer] != 0xff { //fail
+			pointer = pointer + 1
+			continue
+		} else {
+			break
+		}
+	}
+	if pointer > len(data)-4 {
+		return 0
+	}
 	header := data[pointer : pointer+4]
 	// https://www.allegro.cc/forums/thread/591512/674023
 	if len(header) == 4 &&

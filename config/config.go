@@ -12,14 +12,15 @@ import (
 )
 
 var (
-	Port     = flag.Int("p", 80, "specify server port,such as : \"80\"")
-	TLSPort  = flag.Int("sp", 443, "specify server tls port,such as : \"443\"")
-	Source   = flag.String("o", "kuwo:kugou", "specify server source,such as : \"kuwo:kugou\"")
-	CertFile = flag.String("c", "./server.crt", "specify server cert,such as : \"server.crt\"")
-	KeyFile  = flag.String("k", "./server.key", "specify server cert key ,such as : \"server.key\"")
-	Mode     = flag.Int("m", 1, "specify running mode（1:hosts） ,such as : \"1\"")
-	V        = flag.Bool("v", false, "display version info")
-	EndPoint = flag.Bool("e", false, "replace song url")
+	Port             = flag.Int("p", 80, "specify server port,such as : \"80\"")
+	TLSPort          = flag.Int("sp", 443, "specify server tls port,such as : \"443\"")
+	Source           = flag.String("o", "kuwo:kugou", "specify server source,such as : \"kuwo:kugou\"")
+	CertFile         = flag.String("c", "./server.crt", "specify server cert,such as : \"server.crt\"")
+	KeyFile          = flag.String("k", "./server.key", "specify server cert key ,such as : \"server.key\"")
+	Mode             = flag.Int("m", 1, "specify running mode（1:hosts） ,such as : \"1\"")
+	V                = flag.Bool("v", false, "display version info")
+	EndPoint         = flag.Bool("e", false, "replace song url")
+	ForceBestQuality = flag.Bool("b", false, "force the best music quality")
 )
 
 func ValidParams() bool {

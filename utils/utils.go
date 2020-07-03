@@ -46,12 +46,8 @@ func UnGzip(gzipData []byte) ([]byte, error) {
 	}
 	return decryptECBBytes, nil
 }
-func FormatMap(data map[string]interface{}) string {
-	format := ""
-	for key, value := range data {
-		format += fmt.Sprintf("%s=%v\n", key, value)
-	}
-	return format
+func LogInterface(i interface{}) string {
+	return fmt.Sprintf("%+v", i)
 }
 func ReplaceAll(str string, expr string, replaceStr string) string {
 	reg := regexp.MustCompile(expr)
@@ -276,7 +272,7 @@ func ParseSingerKeyWord(data string) []string {
 	var keyword = make(map[string]int)
 	if len(data) > 0 {
 		data = strings.TrimSpace(strings.ToUpper(data))
-		substr := []string{"、", ","," ","､"}
+		substr := []string{"、", ",", " ", "､"}
 		parseKeyWord(data, substr, keyword)
 
 	}
