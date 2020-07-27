@@ -68,6 +68,12 @@ func ParseJsonV2(reader io.Reader) map[string]interface{} {
 	d.Decode(&result)
 	return result
 }
+func ParseJsonV3(data []byte, dest interface{}) error {
+	d := JSON.NewDecoder(bytes.NewReader(data))
+	d.UseNumber()
+	err:=d.Decode(dest)
+	return err
+}
 func ToJson(object interface{}) string {
 	json, err := JSON.Marshal(object)
 	if err != nil {

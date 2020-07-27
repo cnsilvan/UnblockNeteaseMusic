@@ -125,7 +125,6 @@ func RequestBefore(request *http.Request) *Netease {
 	} else if strings.Contains(netease.Path, "package") {
 
 	}
-	//fmt.Println(utils.ToJson(netease))
 	unifiedMusicQuality(netease)
 	return netease
 }
@@ -430,6 +429,8 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 				go calculateSongMd5(searchMusic, song.Url)
 			}
 		}
+	}else{
+
 	}
 	return modified
 }

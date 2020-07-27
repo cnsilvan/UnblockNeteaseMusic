@@ -25,6 +25,6 @@ func GetSong(key common.SearchMusic) (common.Song, bool) {
 	}
 	return song, false
 }
-func Delete(key string) {
-	cache.Delete(key)
+func Delete(key common.SearchMusic) {
+	cache.Delete(fmt.Sprintf("%+v", key))
 }

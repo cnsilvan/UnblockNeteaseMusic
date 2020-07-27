@@ -8,6 +8,7 @@ import (
 	kugou "github.com/cnsilvan/UnblockNeteaseMusic/provider/kugou"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider/kuwo"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider/migu"
+	//"github.com/cnsilvan/UnblockNeteaseMusic/provider/qq"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"net/http"
 	"net/url"
@@ -29,6 +30,7 @@ func Find(music common.SearchMusic) common.Song {
 		if checkCache(song) {
 			return song
 		} else {
+			cache.Delete(music)
 			fmt.Println("but cache invalid")
 		}
 	}
@@ -164,7 +166,9 @@ func getSongFromAllSource(key common.MapType, ch chan common.Song) []common.Song
 		case "migu":
 			go getSongFromMiGu(key, ch)
 			sum++
-
+		//case "qq":
+		//	go getSongFromQQ(key, ch)
+		//	sum++
 		}
 	}
 	for {
@@ -191,6 +195,9 @@ func getSongFromKuGou(key common.MapType, ch chan common.Song) {
 func getSongFromMiGu(key common.MapType, ch chan common.Song) {
 	ch <- calculateSongInfo(migu.SearchSong(key))
 }
+//func getSongFromQQ(key common.MapType, ch chan common.Song) {
+//	ch <- calculateSongInfo(qq.SearchSong(key))
+//}
 func calculateSongInfo(song common.Song) common.Song {
 	if len(song.Url) > 0 {
 		if len(song.Md5) > 0 && song.Br > 0 && song.Size > 0 {
@@ -333,7 +340,6 @@ func checkCache(song common.Song) bool {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		cache.Delete(song.Id)
 		return false
 	} else {
 		return true
