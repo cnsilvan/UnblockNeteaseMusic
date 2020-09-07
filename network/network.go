@@ -3,22 +3,42 @@ package network
 import (
 	"bytes"
 	"crypto/tls"
-	"fmt"
-	"github.com/cnsilvan/UnblockNeteaseMusic/common"
-	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 )
 
-type Netease struct {
-	Path     string
-	Params   string
-	JsonBody map[string]interface{}
+var (
+	httpClient *http.Client
+)
+
+func init() {
+	tr := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   5 * time.Second,
+			KeepAlive: 60 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          300,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		ResponseHeaderTimeout: 5 * time.Second,
+		MaxConnsPerHost:       100,
+	}
+	httpClient = &http.Client{
+		Transport: tr,
+	}
 }
+
 type ClientRequest struct {
 	Method               string
 	RemoteUrl            string
@@ -32,7 +52,7 @@ type ClientRequest struct {
 }
 
 func Request(clientRequest *ClientRequest) (*http.Response, error) {
-	//fmt.Println(clientRequest.RemoteUrl)
+	//log.Println("remoteUrl:" + clientRequest.RemoteUrl)
 	method := clientRequest.Method
 	remoteUrl := clientRequest.RemoteUrl
 	host := clientRequest.Host
@@ -47,25 +67,11 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 	var resp *http.Response
 	request, err := http.NewRequest(method, remoteUrl, body)
 	if err != nil {
-		fmt.Printf("NewRequest fail:%v\n", err)
+		log.Printf("NewRequest fail:%v\n", err)
 		return resp, nil
 	}
 	if !clientRequest.ForbiddenEncodeQuery {
 		request.URL.RawQuery = request.URL.Query().Encode()
-	}
-	c := http.Client{}
-	tr := http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   connectTimeout,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
 	}
 	if len(host) > 0 {
 		request.Host = host
@@ -78,16 +84,19 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 			request.URL.Scheme = "http"
 		}
 	}
-	if request.URL.Scheme == "https" || request.TLS != nil {
-		if _, ok := common.HostDomain[request.Host]; ok {
-			tr.TLSClientConfig = &tls.Config{}
-			// verify music.163.com certificate
-			tr.TLSClientConfig.ServerName = request.Host //it doesn't contain any IP SANs
-			// redirect to music.163.com will need verify self
-			tr.TLSClientConfig.InsecureSkipVerify = true
-			c.Transport = &tr
-		}
+	tr := httpClient.Transport.(*http.Transport)
+	tr.TLSClientConfig = nil
+	// if request.URL.Scheme == "https" || request.TLS != nil {
+	// fix redirect to https://music.163.com
+	if _, ok := common.HostDomain[request.Host]; ok {
+		tr.TLSClientConfig = &tls.Config{}
+		// verify music.163.com certificate
+		tr.TLSClientConfig.ServerName = request.Host //it doesn't contain any IP SANs
+		// redirect to music.163.com will need verify self
+		tr.TLSClientConfig.InsecureSkipVerify = true
 	}
+	// }
+
 	if proxy { //keep headers&cookies for Direct
 		if header != nil {
 			request.Header = header
@@ -128,12 +137,10 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 	request.Header.Set("accept-encoding", acceptEncoding)
 	request.Header.Set("accept-language", acceptLanguage)
 	request.Header.Set("user-agent", userAgent)
-
-	resp, err = c.Do(request)
-
+	resp, err = httpClient.Do(request)
 	if err != nil {
-		//fmt.Println(request.Method, request.URL.String(), host)
-		fmt.Printf("http.Client.Do fail:%v\n", err)
+		//log.Println(request.Method, request.URL.String(), host)
+		log.Printf("http.Client.Do fail:%v\n", err)
 		return resp, err
 	}
 
@@ -150,7 +157,7 @@ func StealResponseBody(resp *http.Response) (io.Reader, error) {
 		resp.Header.Del("Content-Encoding")
 		body, err := utils.UnGzipV2(resp.Body)
 		if err != nil {
-			fmt.Println("read  body fail")
+			log.Println("read  body fail")
 			return resp.Body, err
 		}
 		return body, err
@@ -161,7 +168,7 @@ func StealResponseBody(resp *http.Response) (io.Reader, error) {
 func GetResponseBody(resp *http.Response, keepBody bool) ([]byte, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("read body fail")
+		log.Println("read body fail")
 		return body, err
 	}
 	resp.Body.Close()
@@ -180,7 +187,7 @@ func GetResponseBody(resp *http.Response, keepBody bool) ([]byte, error) {
 		}
 		body, err = utils.UnGzip(body)
 		if err != nil {
-			fmt.Println("read  body fail")
+			log.Println("read  body fail")
 			return body, err
 		}
 	}

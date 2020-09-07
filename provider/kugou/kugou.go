@@ -3,11 +3,12 @@ package kuwo
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/network"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
+	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -16,98 +17,109 @@ const (
 	APIGetSongURL = "http://trackercdn.kugou.com/i/v2/?pid=2&behavior=play&cmd=25"
 )
 
-func SearchSong(key common.MapType) common.Song {
-	searchSong := common.Song{
-
-	}
-	keyword := key["keyword"].(string)
-	searchSongName := key["name"].(string)
-	searchSongName = strings.ToUpper(searchSongName)
-	searchArtistsName := key["artistsName"].(string)
-	searchArtistsName = strings.ToUpper(searchArtistsName)
+func SearchSong(song common.SearchSong) (songs []*common.Song) {
+	song.Keyword = strings.ToUpper(song.Keyword)
+	song.Name = strings.ToUpper(song.Name)
+	song.ArtistsName = strings.ToUpper(song.ArtistsName)
 	cookies := getCookies()
 	clientRequest := network.ClientRequest{
 		Method:    http.MethodGet,
-		RemoteUrl: "http://songsearch.kugou.com/song_search_v2?keyword=" + keyword + "&page=1",
-		Host:      "songsearch.kugou.com",
-		Cookies:   cookies,
-		Proxy:     true,
+		RemoteUrl: "http://songsearch.kugou.com/song_search_v2?keyword=" + song.Keyword + "&page=1",
+		//Host:      "songsearch.kugou.com",
+		Cookies: cookies,
+		Proxy:   true,
 	}
 	resp, err := network.Request(&clientRequest)
 	if err != nil {
-		fmt.Println(err)
-		return searchSong
+		log.Println(err)
+		return songs
 	}
 	defer resp.Body.Close()
 	//header := resp.Header
 	body, err := network.StealResponseBody(resp)
 	if err != nil {
-		fmt.Println(err)
-		return searchSong
+		log.Println(err)
+		return songs
 	}
 	result := utils.ParseJsonV2(body)
-	//fmt.Println(utils.ToJson(result))
+	//log.Println(utils.ToJson(result))
 	data := result["data"]
-	var kugouSearchSong common.MapType = nil
-	if data != nil && data.(common.MapType)["lists"] != nil {
-		switch data.(type) {
-		case common.MapType:
-			lists := data.(common.MapType)["lists"]
-			switch lists.(type) {
-			case common.SliceType:
-				listLength := len(lists.(common.SliceType))
-				if listLength > 0 {
-					for index, matched := range lists.(common.SliceType) {
-						if kugouSong, ok := matched.(common.MapType); ok {
-							if _, ok := kugouSong["FileHash"].(string); ok {
-								singerName, singerNameOk := kugouSong["SingerName"].(string)
-								songName, songNameOk := kugouSong["SongName"].(string)
-								if strings.Contains(songName, "伴奏") && !strings.Contains(searchSongName, "伴奏") {
-									continue
-								}
-								var songNameSores float32 = 0.0
-								if songNameOk {
-									//songNameKeys := utils.ParseSongNameKeyWord(songName)
-									//fmt.Println("songNameKeys:", strings.Join(songNameKeys, "、"))
-									//songNameSores = utils.CalMatchScores(searchSongName, songNameKeys)
-									songNameSores = utils.CalMatchScoresV2(searchSongName, songName, "songName")
-									//fmt.Printf("kugou: songName:%s,searchSongName:%s,songNameSores:%v\n", songName, searchSongName, songNameSores)
-								}
-								var artistsNameSores float32 = 0.0
-								if singerNameOk {
-									//artistKeys := utils.ParseSingerKeyWord(singerName)
-									//fmt.Println("kugou:artistKeys:", strings.Join(artistKeys, "、"))
-									//artistsNameSores = utils.CalMatchScores(searchArtistsName, artistKeys)
-									artistsNameSores = utils.CalMatchScoresV2(searchArtistsName, singerName, "singerName")
-									//fmt.Printf("kugou: singerName:%s,searchArtistsName:%s,artistsNameSores:%v\n", singerName, searchArtistsName, artistsNameSores)
-								}
-								songMatchScore := songNameSores*0.6 + artistsNameSores*0.4
-								//fmt.Println("kugou:songMatchScore:", songMatchScore)
-								if songMatchScore > searchSong.MatchScore {
-									searchSong.MatchScore = songMatchScore
-									//songHashId = fileHash
-									kugouSearchSong = kugouSong
-									searchSong.Name = songName
-									searchSong.Artist = singerName
-									searchSong.Artist = strings.ReplaceAll(singerName, " ", "")
-									//fmt.Println(utils.ToJson(searchSong))
+	if data != nil {
+		if dMap, ok := data.(common.MapType); ok {
+			if lists, ok := dMap["lists"]; ok {
+				if listSlice, ok := lists.(common.SliceType); ok {
+					listLength := len(listSlice)
+					if listLength > 0 {
+						for index, matched := range listSlice {
+							if index >= listLength/2 || index > 9 {
+								break
+							}
+							if kugouSong, ok := matched.(common.MapType); ok {
+								if _, ok := kugouSong["FileHash"].(string); ok {
+									//log.Println(utils.ToJson(kugouSong))
+									songResult := &common.Song{}
+									singerName, singerNameOk := kugouSong["SingerName"].(string)
+									songName, songNameOk := kugouSong["SongName"].(string)
+									songResult.PlatformUniqueKey = kugouSong
+									songResult.PlatformUniqueKey["UnKeyWord"] = song.Keyword
+									songResult.Source = "kugou"
+									songResult.Name = songName
+									songResult.Artist = singerName
+									songResult.Artist = strings.ReplaceAll(singerName, " ", "")
+									songResult.AlbumName, _ = kugouSong["AlbumName"].(string)
+									songResult.Id, ok = kugouSong["ID"].(string)
+									if len(songResult.Id) > 0 {
+										songResult.Id = string(common.KuGouTag) + songResult.Id
+									}
+									if song.OrderBy == common.MatchedScoreDesc {
+										if strings.Contains(songName, "伴奏") && !strings.Contains(song.Keyword, "伴奏") {
+											continue
+										}
+										var songNameSores float32 = 0.0
+										if songNameOk {
+											//songNameKeys := utils.ParseSongNameKeyWord(songName)
+											//log.Println("songNameKeys:", strings.Join(songNameKeys, "、"))
+											//songNameSores = utils.CalMatchScores(searchSongName, songNameKeys)
+											songNameSores = utils.CalMatchScoresV2(song.Name, songName, "songName")
+											//log.Printf("kugou: songName:%s,searchSongName:%s,songNameSores:%v\n", songName, searchSongName, songNameSores)
+										}
+										var artistsNameSores float32 = 0.0
+										if singerNameOk {
+											//artistKeys := utils.ParseSingerKeyWord(singerName)
+											//log.Println("kugou:artistKeys:", strings.Join(artistKeys, "、"))
+											//artistsNameSores = utils.CalMatchScores(searchArtistsName, artistKeys)
+											artistsNameSores = utils.CalMatchScoresV2(song.ArtistsName, singerName, "singerName")
+											//log.Printf("kugou: singerName:%s,searchArtistsName:%s,artistsNameSores:%v\n", singerName, searchArtistsName, artistsNameSores)
+										}
+										songMatchScore := songNameSores*0.6 + artistsNameSores*0.4
+										songResult.MatchScore = songMatchScore
+										//log.Println("kugou:songMatchScore:", songMatchScore)
+									} else if song.OrderBy == common.PlatformDefault {
+
+									}
+									songs = append(songs, songResult)
+
 								}
 
 							}
 
 						}
-						if index >= listLength/2 || index > 9 {
-							break
-						}
 					}
+
 				}
 
 			}
-
 		}
-
 	}
-
+	if song.OrderBy == common.MatchedScoreDesc && len(songs) > 1 {
+		sort.Sort(common.SongSlice(songs))
+	}
+	if song.Limit > 0 && len(songs) > song.Limit {
+		songs = songs[:song.Limit]
+	}
+	return songs
+}
+func GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
 	//'album_audio_id' => '32028735',
 	//	'album_id' => '958812',
 	//	'appid' => '1000',
@@ -134,8 +146,8 @@ func SearchSong(key common.MapType) common.Song {
 	//	'version' => '9315',
 	//	'vipType' => '6',
 	//	'signature' => '82201ea785e8f05e4edbd9f1f6d084cf',
-	//fmt.Println(utils.ToJson(kugouSearchSong))
-	if fileHash, ok := kugouSearchSong["FileHash"].(string); ok && len(fileHash) > 0 {
+	//log.Println(utils.ToJson(kugouSearchSong))
+	if fileHash, ok := song.PlatformUniqueKey["FileHash"].(string); ok && len(fileHash) > 0 {
 		//audioId := "000"
 		//albumId := "000"
 		//if audioId1, ok := kugouSearchSong["Audioid"].(json.Number); ok {
@@ -157,44 +169,53 @@ func SearchSong(key common.MapType) common.Song {
 			ForbiddenEncodeQuery: true,
 			Proxy:                false,
 		}
-		//fmt.Println(clientRequest.RemoteUrl)
+		//log.Println(clientRequest.RemoteUrl)
 		resp, err := network.Request(&clientRequest)
 		if err != nil {
-			fmt.Println(err)
-			return searchSong
+			log.Println(err)
+			return song
 		}
 		defer resp.Body.Close()
-		body, err = network.StealResponseBody(resp)
+		body, err := network.StealResponseBody(resp)
 		songData := utils.ParseJsonV2(body)
-		//fmt.Println(utils.ToJson(songData))
+		//log.Println(utils.ToJson(songData))
 		status, ok := songData["status"].(json.Number)
 		if !ok || status.String() != "1" {
-			fmt.Println(keyword + "，该歌曲酷狗版权保护")
-			fmt.Println(utils.ToJson(songData))
-			return searchSong
+			log.Println(song.PlatformUniqueKey["UnKeyWord"].(string) + "，该歌曲酷狗版权保护")
+			log.Println(utils.ToJson(songData))
+			return song
 		}
 		songUrls, ok := songData["url"].(common.SliceType)
 		if ok && len(songUrls) > 0 {
 			songUrl, ok := songUrls[0].(string)
 			if ok && strings.Index(songUrl, "http") == 0 {
-				searchSong.Url = songUrl
+				song.Url = songUrl
 				if br, ok := songData["bitRate"]; ok {
 					switch br.(type) {
 					case json.Number:
-						searchSong.Br, _ = strconv.Atoi(br.(json.Number).String())
+						song.Br, _ = strconv.Atoi(br.(json.Number).String())
 					case int:
-						searchSong.Br = br.(int)
+						song.Br = br.(int)
 					}
 				}
-				return searchSong
+				return song
 
 			}
 		}
-		//fmt.Println(utils.ToJson(data))
+		//log.Println(utils.ToJson(data))
 	}
-	return searchSong
-
+	return song
 }
+
+func ParseSong(searchSong common.SearchSong) *common.Song {
+	song := &common.Song{}
+	songs := SearchSong(searchSong)
+	if len(songs) > 0 {
+		song = GetSongUrl(common.SearchMusic{Quality: searchSong.Quality}, songs[0])
+	}
+	return song
+}
+
 func getCookies() []*http.Cookie {
 	cookies := make([]*http.Cookie, 1)
 	cookie := &http.Cookie{Name: "kg_mid", Value: createGuid(), Path: "kugou.com", Domain: "kugou.com"}

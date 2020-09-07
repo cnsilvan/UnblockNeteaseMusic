@@ -6,7 +6,16 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/cnsilvan/UnblockNeteaseMusic/cache"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/config"
 	"github.com/cnsilvan/UnblockNeteaseMusic/network"
@@ -14,12 +23,6 @@ import (
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"golang.org/x/text/width"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"regexp"
-	"strings"
 )
 
 var (
@@ -43,12 +46,13 @@ var (
 		"/api/song/enhance/player/url":       1,
 		"/api/song/enhance/player/url/v1":    1,
 		"/api/song/enhance/download/url":     1,
-		"/batch":                             1,
+		"/batch":                             2, //Search
 		"/api/batch":                         1,
-		"/api/v1/search/get":                 1,
-		"/api/v1/search/song/get":            1,
+		"/api/v1/search/get":                 2, //IOS
+		"/api/v1/search/song/get":            2,
 		"/api/search/complex/get":            1,
-		"/api/cloudsearch/pc":                1,
+		"/api/search/complex/get/v2":         2, //Android
+		"/api/cloudsearch/pc":                3, //PC Value
 		"/api/v1/playlist/manipulate/tracks": 1,
 		"/api/song/like":                     1,
 		"/api/v1/play/record":                1,
@@ -61,18 +65,23 @@ var (
 )
 
 type Netease struct {
-	Path         string
-	Params       map[string]interface{}
-	JsonBody     map[string]interface{}
-	Web          bool
-	Encrypted    bool
-	Forward      bool
-	EndPoint     string
-	MusicQuality common.MusicQuality
+	Path           string
+	Params         map[string]interface{}
+	JsonBody       map[string]interface{}
+	Web            bool
+	Encrypted      bool
+	Forward        bool
+	EndPoint       string
+	MusicQuality   common.MusicQuality
+	SearchPath     string
+	SearchKey      string
+	SearchTaskChan chan []*common.Song `json:"-"`
+	SearchSongs    []*common.Song
 }
 
 func RequestBefore(request *http.Request) *Netease {
 	netease := &Netease{Path: request.URL.Path}
+
 	if request.Method == http.MethodPost && (strings.Contains(netease.Path, "/eapi/") || strings.Contains(netease.Path, "/api/linux/forward")) {
 		request.Header.Del("x-napm-retry")
 		request.Header.Set("X-Real-IP", "118.66.66.66")
@@ -91,7 +100,7 @@ func RequestBefore(request *http.Request) *Netease {
 			decryptECBBytes, _ := crypto.AesDecryptECB(requestBodyH[:length], []byte(linuxApiKey))
 			var result common.MapType
 			result = utils.ParseJson(decryptECBBytes)
-			//fmt.Println(utils.ToJson(result))
+			//log.Println(utils.ToJson(result))
 			urlM, ok := result["url"].(string)
 			if ok {
 				netease.Path = urlM
@@ -101,9 +110,9 @@ func RequestBefore(request *http.Request) *Netease {
 				netease.Params = params
 			}
 
-			//fmt.Println("forward")
-			//fmt.Printf("path:%s \nparams:%s\n", netease.Path, netease.Params)
-		} else {
+			//log.Println("forward")
+			//log.Printf("path:%s \nparams:%s\n", netease.Path, netease.Params)
+		} else if len(requestBody) > 7 {
 			requestBodyH := make([]byte, len(requestBody))
 			length, _ := hex.Decode(requestBodyH, requestBody[7:len(requestBody)-len(pad)])
 			decryptECBBytes, _ := crypto.AesDecryptECB(requestBodyH[:length], []byte(eApiKey))
@@ -111,7 +120,8 @@ func RequestBefore(request *http.Request) *Netease {
 			data := strings.Split(decryptString, "-36cd479b6b5-")
 			netease.Path = data[0]
 			netease.Params = utils.ParseJson(bytes.NewBufferString(data[1]).Bytes())
-			//fmt.Printf("path:%s \nparams:%s\n", netease.Path, netease.Params)
+			// log.Println(utils.ToJson(netease))
+			//log.Printf("path:%s \nparams:%s\n", netease.Path, netease.Params)
 		}
 		netease.Path = strings.ReplaceAll(netease.Path, "https://music.163.com", "")
 		netease.Path = strings.ReplaceAll(netease.Path, "http://music.163.com", "")
@@ -126,6 +136,7 @@ func RequestBefore(request *http.Request) *Netease {
 
 	}
 	unifiedMusicQuality(netease)
+	searchOtherPlatform(netease)
 	return netease
 }
 func Request(request *http.Request, remoteUrl string) (*http.Response, error) {
@@ -140,11 +151,13 @@ func Request(request *http.Request, remoteUrl string) (*http.Response, error) {
 	return network.Request(&clientRequest)
 }
 func RequestAfter(request *http.Request, response *http.Response, netease *Netease) {
-	run := false
+	pass := false
 	if _, ok := Path[netease.Path]; ok {
-		run = true
+		pass = true
+		//log.Println(utils.ToJson(netease))
 	}
-	if run && response.StatusCode == 200 {
+	if pass && response.StatusCode == 200 {
+
 		encode := response.Header.Get("Content-Encoding")
 		enableGzip := false
 		if len(encode) > 0 && (strings.Contains(encode, "gzip") || strings.Contains(encode, "deflate")) {
@@ -159,7 +172,7 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			if enableGzip {
 				decryptECBBytes, _ = utils.UnGzip(decryptECBBytes)
 			}
-			//fmt.Println(string(decryptECBBytes), netease)
+			//log.Println(string(decryptECBBytes), netease)
 			aeskey := eApiKey
 			if netease.Forward {
 				aeskey = linuxApiKey
@@ -170,7 +183,7 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			netease.JsonBody = result
 
 			//if strings.Contains(netease.Path,"batch"){
-			// fmt.Println(utils.ToJson(netease))
+			// log.Println(utils.ToJson(netease))
 			//}
 			modified := false
 			codeN, ok := netease.JsonBody["code"].(json.Number)
@@ -178,52 +191,60 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			if ok {
 				code = codeN.String()
 			}
+			//log.Println(utils.ToJson(netease))
 			if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
 				modified = tryCollect(netease, request)
 			} else if !netease.Web && (code == "401" || code == "512") && strings.EqualFold(netease.Path, "/api/song/like") {
 				modified = tryLike(netease, request)
 			} else if strings.Contains(netease.Path, "url") {
 				modified = tryMatch(netease)
+			} else {
+				modified = tryAddOtherPlatformResult(netease)
 			}
+
 			if processMapJson(netease.JsonBody) || modified {
 				response.Header.Del("transfer-encoding")
 				response.Header.Del("content-encoding")
 				response.Header.Del("content-length")
 				//netease.JsonBody = netease.JsonBody
-				//fmt.Println("NeedRepackage")
-				modifiedJson, _ := utils.JSON.Marshal(netease.JsonBody)
-				//fmt.Println(netease)
-				//fmt.Println(string(modifiedJson))
+				//log.Println("NeedRepackage")
+				modifiedJson, _ := json.Marshal(netease.JsonBody)
+				//log.Println(netease)
+				//log.Println(string(modifiedJson))
 				if netease.Encrypted {
 					modifiedJson = crypto.AesEncryptECB(modifiedJson, []byte(aeskey))
 				}
 				response.Body = ioutil.NopCloser(bytes.NewBuffer(modifiedJson))
 			} else {
-				//fmt.Println("NotNeedRepackage")
+				//log.Println("NotNeedRepackage")
 				responseHold := ioutil.NopCloser(bytes.NewBuffer(tmpBody))
 				response.Body = responseHold
 			}
-			//fmt.Println(utils.ToJson(netease.JsonBody))
+			//log.Println(utils.ToJson(netease.JsonBody))
 		} else {
 			responseHold := ioutil.NopCloser(bytes.NewBuffer(tmpBody))
 			response.Body = responseHold
 		}
 	} else {
-		//fmt.Println("Not Process")
+		//log.Println("Not Process")
 	}
 }
 func tryCollect(netease *Netease, request *http.Request) bool {
 	modified := false
-	//fmt.Println(utils.ToJson(netease))
+	//log.Println(utils.ToJson(netease))
 	if utils.Exist("trackIds", netease.Params) {
 		trackId := ""
 		switch netease.Params["trackIds"].(type) {
 		case string:
 			var result common.SliceType
-			d := utils.JSON.NewDecoder(bytes.NewReader(bytes.NewBufferString(netease.Params["trackIds"].(string)).Bytes()))
-			d.UseNumber()
-			d.Decode(&result)
-			trackId = result[0].(string)
+			err := utils.ParseJsonV3(bytes.NewBufferString(netease.Params["trackIds"].(string)).Bytes(), &result)
+			if err == nil {
+				trackId = result[0].(string)
+			} else {
+				log.Println(err)
+				return false
+			}
+
 		case common.SliceType:
 			trackId = netease.Params["trackIds"].(common.SliceType)[0].(json.Number).String()
 		}
@@ -253,7 +274,7 @@ func tryCollect(netease *Netease, request *http.Request) bool {
 	return modified
 }
 func tryLike(netease *Netease, request *http.Request) bool {
-	//fmt.Println("try like")
+	//log.Println("try like")
 	modified := false
 	if utils.Exist("trackId", netease.Params) {
 		trackId := netease.Params["trackId"].(string)
@@ -338,7 +359,7 @@ func tryMatch(netease *Netease) bool {
 		}
 	}
 	//modifiedJson, _ := json.Marshal(jsonBody)
-	//fmt.Println(string(modifiedJson))
+	//log.Println(string(modifiedJson))
 	return modified
 }
 func searchGreySongs(data common.SliceType, netease *Netease) bool {
@@ -366,12 +387,11 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 				songType = width.Narrow.String(songType)
 				if len(songType) > 5 && strings.Contains(songType, "?") {
 					songType = songType[0:strings.Index(songType, "?")]
-					//fmt.Println(songType)
 				}
 				if songType == "mp3" || songType == "flac" || songType == "ape" || songType == "wav" || songType == "aac" || songType == "mp4" {
 					data["type"] = songType
 				} else {
-					fmt.Println("unrecognized format:", songType)
+					log.Println("unrecognized format:", songType)
 					if song.Br > 320000 {
 						data["type"] = "flac"
 					} else {
@@ -395,7 +415,7 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 			data["fee"] = 8                   //web
 			uri, err := url.Parse(song.Url)
 			if err != nil {
-				fmt.Println("url.Parse error:", song.Url)
+				log.Println("url.Parse error:", song.Url)
 				data["url"] = song.Url
 			} else {
 				if *config.EndPoint {
@@ -429,9 +449,10 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 				go calculateSongMd5(searchMusic, song.Url)
 			}
 		}
-	}else{
+	} else {
 
 	}
+	//log.Println(utils.ToJson(data))
 	return modified
 }
 func calculateSongMd5(music common.SearchMusic, songUrl string) string {
@@ -442,7 +463,7 @@ func calculateSongMd5(music common.SearchMusic, songUrl string) string {
 	}
 	resp, err := network.Request(&clientRequest)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return songMd5
 	}
 	defer resp.Body.Close()
@@ -450,12 +471,12 @@ func calculateSongMd5(music common.SearchMusic, songUrl string) string {
 	h := md5.New()
 	_, err = io.Copy(h, r)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return songMd5
 	}
 	songMd5 = hex.EncodeToString(h.Sum(nil))
 	provider.UpdateCacheMd5(music, songMd5)
-	//fmt.Println("calculateSongMd5 songId:", songId, ",songUrl:", songUrl, ",md5:", songMd5)
+	//log.Println("calculateSongMd5 songId:", songId, ",songUrl:", songUrl, ",md5:", songMd5)
 	return songMd5
 }
 func processSliceJson(jsonSlice common.SliceType) bool {
@@ -469,8 +490,8 @@ func processSliceJson(jsonSlice common.SliceType) bool {
 			needModify = processSliceJson(value.(common.SliceType)) || needModify
 
 		default:
-			//fmt.Printf("index(%T):%v\n", index, index)
-			//fmt.Printf("value(%T):%v\n", value, value)
+			//log.Printf("index(%T):%v\n", index, index)
+			//log.Printf("value(%T):%v\n", value, value)
 		}
 	}
 	return needModify
@@ -479,7 +500,7 @@ func processMapJson(jsonMap common.MapType) bool {
 	needModify := false
 	if utils.Exists([]string{"st", "subp", "pl", "dl"}, jsonMap) {
 		if v, _ := jsonMap["st"]; v.(json.Number).String() != "0" {
-			//open grep song
+			//open gray song
 			jsonMap["st"] = 0
 			needModify = true
 		}
@@ -524,7 +545,7 @@ func processMapJson(jsonMap common.MapType) bool {
 }
 
 func unifiedMusicQuality(netease *Netease) {
-	//fmt.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.Params)))
+	//log.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.Params)))
 	netease.MusicQuality = common.Lossless
 	if !*config.ForceBestQuality {
 		if levelParam, ok := netease.Params["level"]; ok {
@@ -554,7 +575,7 @@ func unifiedMusicQuality(netease *Netease) {
 				}
 			}
 		}
-		//fmt.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.MusicQuality)))
+		//log.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.MusicQuality)))
 	}
 }
 func generateEndpoint(netease *Netease) string {
@@ -582,6 +603,202 @@ func generateEndpoint(netease *Netease) string {
 		}
 	}
 	netease.EndPoint = protocol + endPoint
-	//fmt.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.EndPoint)))
+	//log.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.EndPoint)))
 	return netease.EndPoint
+}
+func searchOtherPlatform(netease *Netease) *Netease {
+	//log.Println(utils.ToJson(netease))
+	if *config.SearchLimit > 0 && Path[netease.Path] == 2 {
+		var paramsMap map[string]interface{}
+		if utils.Exists([]string{"offset", "s"}, netease.Params) { //单曲
+			netease.SearchPath = netease.Path
+			paramsMap = netease.Params
+		} else if utils.Exists([]string{"keyword", "scene"}, netease.Params) { //综合
+			netease.SearchPath = netease.Path
+			paramsMap = netease.Params
+		} else { //pc
+			for k, v := range netease.Params {
+				//pc
+				if t, ok := Path[k]; ok {
+					if t == 3 { //search
+						if searchValue, ok := v.(string); ok {
+							paramsMap = utils.ParseJson([]byte(searchValue))
+							netease.SearchPath = k
+							break
+						}
+					}
+				}
+			}
+		}
+		if paramsMap != nil {
+			var offset int64
+			if offsetJson, ok := paramsMap["offset"].(json.Number); ok {
+				//just offset=0
+				if i, err := offsetJson.Int64(); err == nil {
+					offset = i
+				}
+
+			} else if offsetS, ok := paramsMap["offset"].(string); ok {
+				//just offset=0
+				if i, err := strconv.ParseInt(offsetS, 10, 64); err == nil {
+					offset = i
+				}
+
+			}
+			if offset == 0 {
+				if searchS, ok := paramsMap["s"].(string); ok {
+					netease.SearchKey = searchS
+
+				} else if searchS, ok := paramsMap["keyword"].(string); ok {
+					netease.SearchKey = searchS
+
+				}
+			}
+
+		}
+		if len(netease.SearchKey) > 0 {
+			var ch = make(chan []*common.Song, 1)
+			netease.SearchTaskChan = ch
+			go utils.PanicWrapper(func() {
+				trySearch(netease, ch)
+			})
+		}
+	}
+	return netease
+}
+func trySearch(netease *Netease, ch chan []*common.Song) {
+	ch <- provider.SearchSongFromAllSource(common.SearchSong{Keyword: netease.SearchKey, Limit: *config.SearchLimit, OrderBy: common.PlatformDefault})
+	//log.Println(utils.ToJson(songs))
+}
+func tryAddOtherPlatformResult(netease *Netease) bool {
+	modified := false
+	if *config.SearchLimit <= 0 {
+		return false
+	}
+	if len(netease.SearchSongs) == 0 && netease.SearchTaskChan != nil {
+		if result, ok := <-netease.SearchTaskChan; ok {
+			netease.SearchSongs = result
+			close(netease.SearchTaskChan)
+		}
+	}
+	if len(netease.SearchKey) > 0 && netease.JsonBody != nil && len(netease.SearchSongs) > 0 { //搜索页面
+		var orginalMap common.MapType
+		var orginalSongsKey string
+		var neteaseSongs common.SliceType
+		if jBody, ok := netease.JsonBody[netease.SearchPath].(common.MapType); ok {
+			if result, ok := jBody["result"].(common.MapType); ok {
+				if neteaseSongs, ok = result["songs"].(common.SliceType); ok {
+					orginalMap = result
+					orginalSongsKey = "songs"
+
+				}
+
+			}
+		} else if jBody, ok := netease.JsonBody["data"].(common.MapType); ok { //android 综合
+			if result, ok := jBody["complete"].(common.MapType); ok {
+				if s, ok := result["song"].(common.MapType); ok {
+					if neteaseSongs, ok = s["songs"].(common.SliceType); ok {
+						orginalMap = s
+						orginalSongsKey = "songs"
+					}
+
+				}
+
+			}
+		} else if jBody, ok := netease.JsonBody["result"].(common.MapType); ok {
+			if neteaseSongs, ok = jBody["songs"].(common.SliceType); ok { //android&ios 单曲
+				orginalMap = jBody
+				orginalSongsKey = "songs"
+			} else if s, ok := jBody["song"].(common.MapType); ok { //ios 综合
+				if neteaseSongs, ok = s["songs"].(common.SliceType); ok {
+					orginalMap = s
+					orginalSongsKey = "songs"
+				}
+			}
+
+		}
+		if orginalMap != nil && len(orginalSongsKey) > 0 && neteaseSongs != nil && len(neteaseSongs) > 0 {
+			if template, ok := neteaseSongs[0].(common.MapType); ok {
+				var newSongs common.SliceType
+				for _, song := range netease.SearchSongs {
+					var copySong common.MapType
+					err := utils.ParseJsonV4(bytes.NewBufferString(utils.ToJson(template)), &copySong)
+					if err != nil {
+						log.Println(err)
+						continue
+					}
+					source := "来自block"
+					idTag := common.KuWoTag
+					switch song.Source {
+					case "kugou":
+						source = "来自酷狗音乐"
+						idTag = common.KuGouTag
+					case "migu":
+						source = "来自咪咕音乐"
+						idTag = common.MiGuTag
+					case "kuwo":
+						source = "来自酷我音乐"
+						idTag = common.KuWoTag
+					default:
+						source = "来自block"
+						idTag = common.KuWoTag
+
+					}
+					if _, ok := copySong["name"]; ok { //make sure ok
+						copySong["alia"] = []string{source}
+						if ar, ok := copySong["ar"]; ok {
+							artMap := make(common.MapType)
+							artMap["name"] = song.Artist
+							if ars, ok := ar.(common.SliceType); ok {
+								var a []interface{}
+								if len(ars) > 0 {
+									if b, ok := ars[0].(common.MapType); ok {
+										b["name"] = song.Artist
+										a = append(a, b)
+									} else {
+										a = append(a, artMap)
+									}
+								} else {
+									a = append(a, artMap)
+								}
+								copySong["ar"] = a
+							} else {
+								copySong["ar"] = []common.MapType{artMap}
+							}
+						}
+						if al, ok := copySong["al"]; ok {
+							if alMap, ok := al.(common.MapType); ok {
+								alMap["name"] = song.AlbumName
+							}
+						}
+						idS := song.Id
+						if len(idS) == 0 {
+							idS = string(idTag) + cache.GetPlatFormIdTag(idTag)
+						}
+						songSelfId, err := strconv.ParseInt(idS, 10, 64)
+						if err != nil {
+							log.Println(err.Error())
+							continue
+						} else {
+							cache.PutSong(common.SearchMusic{Id: idS, Quality: common.Standard}, song)
+							cache.PutSong(common.SearchMusic{Id: idS, Quality: common.Higher}, song)
+							cache.PutSong(common.SearchMusic{Id: idS, Quality: common.ExHigh}, song)
+							cache.PutSong(common.SearchMusic{Id: idS, Quality: common.Lossless}, song)
+							copySong["id"] = songSelfId
+						}
+						copySong["name"] = song.Name
+
+						newSongs = append(newSongs, copySong)
+						modified = true
+					}
+				}
+				newSongs = append(newSongs, neteaseSongs...)
+				orginalMap[orginalSongsKey] = newSongs
+
+			}
+
+		}
+
+	}
+	return modified
 }

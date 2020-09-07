@@ -1,8 +1,5 @@
 module github.com/cnsilvan/UnblockNeteaseMusic
 
-go 1.14
+go 1.15
 
-require (
-	github.com/json-iterator/go v1.1.9
-	golang.org/x/text v0.3.2
-)
+require golang.org/x/text v0.3.3

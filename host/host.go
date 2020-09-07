@@ -6,6 +6,7 @@ import (
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/config"
 	"io"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -34,14 +35,14 @@ func fileExists(path string) (bool, error) {
 func appendToFile(fileName string, content string) error {
 	f, err := os.OpenFile(fileName, os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		fmt.Println("appendToFile cacheFileList.yml file create failed. err: " + err.Error())
+		log.Println("appendToFile cacheFileList.yml file create failed. err: " + err.Error())
 	} else {
 		defer f.Close()
 		//n, _ := f.Seek(0, io.SeekEnd)
 		//_, err = f.WriteAt([]byte(content), n)
 		_, err = f.WriteString(content)
 		if err != nil {
-			fmt.Println("appendToFile write file fail:", err)
+			log.Println("appendToFile write file fail:", err)
 			return err
 		}
 	}
@@ -50,13 +51,13 @@ func appendToFile(fileName string, content string) error {
 func restoreHost(hostPath string) error {
 	host, err := os.Create(hostPath)
 	if err != nil {
-		fmt.Println("open file fail:", err)
+		log.Println("open file fail:", err)
 		return err
 	}
 	defer host.Close()
 	gBackup, err := os.Open(hostPath + ".gBackup")
 	if err != nil {
-		fmt.Println("Open write file fail:", err)
+		log.Println("Open write file fail:", err)
 		return err
 	}
 	defer gBackup.Close()
@@ -67,14 +68,14 @@ func restoreHost(hostPath string) error {
 			break
 		}
 		if err != nil {
-			fmt.Println("read err:", err)
+			log.Println("read err:", err)
 			return err
 		}
 		newLine := string(line)
 
 		_, err = host.WriteString(newLine + "\n")
 		if err != nil {
-			fmt.Println("write to file fail:", err)
+			log.Println("write to file fail:", err)
 			return err
 		}
 	}
@@ -91,13 +92,13 @@ func backupHost(hostPath string) (bool, error) {
 	containsProxyDomain := false
 	host, err := os.Open(hostPath)
 	if err != nil {
-		fmt.Println("open file fail:", err)
+		log.Println("open file fail:", err)
 		return containsProxyDomain, err
 	}
 	defer host.Close()
 	gBackup, err := os.Create(hostPath + ".gBackup")
 	if err != nil {
-		fmt.Println("Open write file fail:", err)
+		log.Println("Open write file fail:", err)
 		return containsProxyDomain, err
 	}
 	defer gBackup.Close()
@@ -108,25 +109,25 @@ func backupHost(hostPath string) (bool, error) {
 			break
 		}
 		if err != nil {
-			fmt.Println("read err:", err)
+			log.Println("read err:", err)
 			return containsProxyDomain, err
 		}
 		newLine := string(line)
 		if !containsProxyDomain {
 			if strings.Contains(strings.ToUpper(newLine), strings.ToUpper("UnblockNetEaseMusic")) {
 				containsProxyDomain = true
-				fmt.Println("Found UnblockNetEaseMusic Line")
+				log.Println("Found UnblockNetEaseMusic Line")
 			}
 			for domain, _ := range common.ProxyDomain {
 				if strings.Contains(newLine, domain) {
 					containsProxyDomain = true
-					fmt.Println("Found ProxyDomain Line")
+					log.Println("Found ProxyDomain Line")
 				}
 			}
 		}
 		_, err = gBackup.WriteString(newLine + "\n")
 		if err != nil {
-			fmt.Println("write to file fail:", err)
+			log.Println("write to file fail:", err)
 			return containsProxyDomain, err
 		}
 	}
@@ -137,13 +138,13 @@ func backupHost(hostPath string) (bool, error) {
 func excludeRelatedHost(hostPath string) error {
 	host, err := os.Create(hostPath)
 	if err != nil {
-		fmt.Println("open file fail:", err)
+		log.Println("open file fail:", err)
 		return err
 	}
 	defer host.Close()
 	gBackup, err := os.Open(hostPath + ".gBackup")
 	if err != nil {
-		fmt.Println("Open write file fail:", err)
+		log.Println("Open write file fail:", err)
 		return err
 	}
 	defer gBackup.Close()
@@ -154,7 +155,7 @@ func excludeRelatedHost(hostPath string) error {
 			break
 		}
 		if err != nil {
-			fmt.Println("read err:", err)
+			log.Println("read err:", err)
 			return err
 		}
 		newLine := string(line)
@@ -174,7 +175,7 @@ func excludeRelatedHost(hostPath string) error {
 		if needWrite {
 			_, err = host.WriteString(newLine + "\n")
 			if err != nil {
-				fmt.Println("write to file fail:", err)
+				log.Println("write to file fail:", err)
 				return err
 			}
 		}
@@ -189,11 +190,11 @@ func resolveIps() error {
 	for domain, _ := range common.HostDomain {
 		rAddr, err := net.ResolveIPAddr("ip", domain)
 		if err != nil {
-			fmt.Printf("Fail to resolve %s, %s\n", domain, err)
+			log.Printf("Fail to resolve %s, %s\n", domain, err)
 			return err
 		}
 		if len(rAddr.IP) == 0 {
-			fmt.Printf("Fail to resolve %s,IP nil\n", domain)
+			log.Printf("Fail to resolve %s,IP nil\n", domain)
 			return fmt.Errorf("Fail to resolve  %s,Ip length==0 \n", domain)
 		}
 		ip := rAddr.IP.String()
@@ -214,7 +215,7 @@ func getHostsPath() (string, error) {
 		hostsPath = filepath.Join(hostsPath)
 	}
 	if exist, err := fileExists(hostsPath); !exist {
-		fmt.Println("Not Found Host File：", hostsPath)
+		log.Println("Not Found Host File：", hostsPath)
 		return hostsPath, err
 	}
 	return hostsPath, nil
@@ -230,7 +231,7 @@ func RestoreHosts() error {
 	return nil
 }
 func InitHosts() error {
-	fmt.Println("-------------------Init Host-------------------")
+	log.Println("-------------------Init Host-------------------")
 	if *config.Mode == 1 { //hosts mode
 		hostsPath, err := getHostsPath()
 		if err == nil {
@@ -243,14 +244,14 @@ func InitHosts() error {
 						if err != nil {
 							return err
 						}
-						fmt.Println("HostDomain:", common.HostDomain)
+						log.Println("HostDomain:", common.HostDomain)
 					}
 				} else {
 					err = resolveIps()
 					if err != nil {
 						return err
 					}
-					fmt.Println("HostDomain:", common.HostDomain)
+					log.Println("HostDomain:", common.HostDomain)
 				}
 				if err = appendToHost(hostsPath); err == nil {
 
@@ -263,7 +264,7 @@ func InitHosts() error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("HostDomain:", common.HostDomain)
+		log.Println("HostDomain:", common.HostDomain)
 		return err
 	}
 

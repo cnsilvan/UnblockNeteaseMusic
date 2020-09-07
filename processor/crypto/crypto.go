@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"log"
 )
 
 // =================== CBC ======================
@@ -119,7 +120,7 @@ func AesEncryptCFB(origData []byte, key []byte) (encrypted []byte) {
 func AesDecryptCFB(encrypted []byte, key []byte) (decrypted []byte) {
 	block, _ := aes.NewCipher(key)
 	if len(encrypted) < aes.BlockSize {
-		fmt.Println("ciphertext too short")
+		log.Println("ciphertext too short")
 		return []byte{}
 
 	}
@@ -133,7 +134,7 @@ func AesDecryptCFB(encrypted []byte, key []byte) (decrypted []byte) {
 func RSAEncryptV2(origData []byte, publicKey *rsa.PublicKey) []byte {
 	encrypted, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, origData)
 	if err != nil {
-		fmt.Println("rsa.EncryptPKCS1v15:", err)
+		log.Println("rsa.EncryptPKCS1v15:", err)
 		return encrypted
 	}
 	return encrypted
@@ -141,12 +142,12 @@ func RSAEncryptV2(origData []byte, publicKey *rsa.PublicKey) []byte {
 func RSAEncrypt(origData []byte, publicKey []byte) (encrypted []byte) {
 	pubKey, err := ParsePublicKey(publicKey)
 	if err != nil {
-		fmt.Println("rsa.ParsePublicKey:", err)
+		log.Println("rsa.ParsePublicKey:", err)
 		return encrypted
 	}
 	encrypted, err = rsa.EncryptPKCS1v15(rand.Reader, pubKey, origData)
 	if err != nil {
-		fmt.Println("rsa.EncryptPKCS1v15:", err)
+		log.Println("rsa.EncryptPKCS1v15:", err)
 		return encrypted
 	}
 	return encrypted
@@ -154,12 +155,12 @@ func RSAEncrypt(origData []byte, publicKey []byte) (encrypted []byte) {
 func ParsePublicKey(publicKey []byte) (*rsa.PublicKey, error) {
 	pemBlock, _ := pem.Decode(publicKey)
 	if pemBlock == nil {
-		fmt.Println("pem.Decode error")
+		log.Println("pem.Decode error")
 		return nil, fmt.Errorf("pem.Decode error")
 	}
 	pubKey, err := x509.ParsePKIXPublicKey(pemBlock.Bytes)
 	if err != nil {
-		fmt.Println("x509.ParsePKCS1PublicKey:", err)
+		log.Println("x509.ParsePKCS1PublicKey:", err)
 		return nil, err
 	}
 	return pubKey.(*rsa.PublicKey), nil

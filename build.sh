@@ -1,4 +1,4 @@
-CurrentVersion=0.2.4
+CurrentVersion=0.2.5
 Project=github.com/cnsilvan/UnblockNeteaseMusic
 Path="$Project/version"
 ExecName="UnblockNeteaseMusic"
@@ -7,7 +7,7 @@ GoVersion=$(go version)
 BuildTime=$(date "+%Y-%m-%d %H:%M:%S")
 echo "Building..."
 TargetDir=bin
-go build -ldflags "-X '$Path.Version=$CurrentVersion' -X '$Path.BuildTime=$BuildTime' -X '$Path.GoVersion=$GoVersion' -X '$Path.GitCommit=$GitCommit' -w -s" -o $TargetDir/$ExecName
+env GOPROXY=https://goproxy.io go build -ldflags "-X '$Path.Version=$CurrentVersion' -X '$Path.BuildTime=$BuildTime' -X '$Path.GoVersion=$GoVersion' -X '$Path.GitCommit=$GitCommit' -w -s" -o $TargetDir/$ExecName
 echo "--------------------------------------------"
 echo "Version:" $CurrentVersion
 echo "Git commit:" $GitCommit

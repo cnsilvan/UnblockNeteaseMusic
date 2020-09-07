@@ -10,8 +10,9 @@
 * 较为精准的歌曲匹配
 * 全平台支持
 * 低内存、高效率
-* 暂时支持酷狗、酷我 、咪咕的源（酷我、咪咕支持无损音乐）
+* 暂时支持酷狗、酷我 、咪咕的源
 * 支持客户端选择音质（暂时支持酷我、咪咕）
+* 支持显示其他平台搜索结果
 * 学习过程中的产物，随缘更新
 
 # 运行
@@ -39,12 +40,16 @@ sudo ./UnblockNeteaseMusic
   -e	replace song url
   -k string
     	specify server cert key ,such as : "server.key" (default "./server.key")
+  -l string
+    	specify log file ,such as : "/var/log/unblockNeteaseMusic.log"
   -m int
     	specify running mode（1:hosts） ,such as : "1" (default 1)
   -o string
-    	specify server source,such as : "kuwo:kugou" (default "kuwo:kugou")
+    	specify server source,such as : "kuwo" (default "kuwo")
   -p int
     	specify server port,such as : "80" (default 80)
+  -sl int
+    	set the number of songs searched on other platforms(0-3) ,such as : "1"
   -sp int
     	specify server tls port,such as : "443" (default 443)
   -v	display version info
@@ -58,7 +63,7 @@ sudo ./UnblockNeteaseMusic
 3. 网易云APP能用就别升级，不保证新版本可以使用
 4. 开启多个源会自动选择最优匹配歌曲，并发的支持使得同时多个源获取并不会增加多少耗时，如果发现一直获取很慢，使用排除法来检查是否某一个源无法使用
 6. 0.2.3版本后默认音质将根据客户端选择的音质，启动参数加上`-b`可以设置强制音质优先
-
+7. 0.2.5版本后支持直接在搜索页面显示其他平台搜索结果，如遇错误，请关闭该功能
 ### IOS信任证书步骤
 
 1. 安装证书--设置-描述文件-安装
@@ -75,3 +80,6 @@ sudo ./UnblockNeteaseMusic
 # 感谢
 
 [NodeJs版本](https://github.com/nondanee/UnblockNeteaseMusic)以及为它贡献的所有coder
+
+# 声明
+该项目只能用作学习，请自行开通会员以支持平台购买更多的版权

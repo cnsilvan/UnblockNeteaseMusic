@@ -6,26 +6,26 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/json-iterator/go"
-	"golang.org/x/text/width"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-)
 
-var JSON = jsoniter.ConfigCompatibleWithStandardLibrary
+	"golang.org/x/text/width"
+)
 
 func UnGzipV2(gzipData io.Reader) (io.Reader, error) {
 	r, err := gzip.NewReader(gzipData)
 	if err != nil {
-		fmt.Println("UnGzipV2 error:", err)
+		log.Println("UnGzipV2 error:", err)
 		return gzipData, err
 	}
 	//defer r.Close()
@@ -34,14 +34,14 @@ func UnGzipV2(gzipData io.Reader) (io.Reader, error) {
 func UnGzip(gzipData []byte) ([]byte, error) {
 	r, err := gzip.NewReader(bytes.NewReader(gzipData))
 	if err != nil {
-		fmt.Println("UnGzip error:", err)
+		log.Println("UnGzip error:", err)
 		return gzipData, err
 	}
 	defer r.Close()
 	var decryptECBBytes = gzipData
 	decryptECBBytes, err = ioutil.ReadAll(r)
 	if err != nil {
-		fmt.Println("UnGzip")
+		log.Println("UnGzip")
 		return gzipData, err
 	}
 	return decryptECBBytes, nil
@@ -56,28 +56,41 @@ func ReplaceAll(str string, expr string, replaceStr string) string {
 }
 func ParseJson(data []byte) map[string]interface{} {
 	var result map[string]interface{}
-	d := JSON.NewDecoder(bytes.NewReader(data))
+	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
 	d.Decode(&result)
 	return result
 }
 func ParseJsonV2(reader io.Reader) map[string]interface{} {
 	var result map[string]interface{}
-	d := JSON.NewDecoder(reader)
+	d := json.NewDecoder(reader)
 	d.UseNumber()
 	d.Decode(&result)
 	return result
 }
 func ParseJsonV3(data []byte, dest interface{}) error {
-	d := JSON.NewDecoder(bytes.NewReader(data))
+	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
-	err:=d.Decode(dest)
-	return err
+	return d.Decode(dest)
 }
+func ParseJsonV4(reader io.Reader, dest interface{}) error {
+	d := json.NewDecoder(reader)
+	d.UseNumber()
+	return d.Decode(dest)
+}
+func PanicWrapper(f func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Println("Recover panic : ", r)
+		}
+	}()
+	f()
+}
+
 func ToJson(object interface{}) string {
-	json, err := JSON.Marshal(object)
+	json, err := json.Marshal(object)
 	if err != nil {
-		fmt.Println("ToJson Error：", err)
+		log.Println("ToJson Error：", err)
 		return "{}"
 	}
 	return string(json)
@@ -110,7 +123,7 @@ func GetCurrentPath() (string, error) {
 	if i < 0 {
 		return "", errors.New(`error: Can't find "/" or "\".`)
 	}
-	return string(path[0 : i+1]), nil
+	return path[0 : i+1], nil
 }
 func MD5(data []byte) string {
 	h := md5.New()
@@ -134,7 +147,7 @@ func CalMatchScoresV2(beMatchedData string, beSplitedData string, matchType stri
 		beMatchedData = orginData
 
 	}
-	//fmt.Printf("1:orginData:%s,beMatchedData:%s,beSplitedData:%s\n",orginData,beMatchedData,beSplitedData)
+	//log.Printf("1:orginData:%s,beMatchedData:%s,beSplitedData:%s\n",orginData,beMatchedData,beSplitedData)
 	var keyword []string
 	if matchType == "songName" {
 		keyword = ParseSongNameKeyWord(beSplitedData)
@@ -145,7 +158,7 @@ func CalMatchScoresV2(beMatchedData string, beSplitedData string, matchType stri
 	for _, key := range keyword {
 		beMatchedData = strings.Replace(beMatchedData, key, "", 1)
 	}
-	//fmt.Printf("2:orginData:%s,beMatchedData:%s,beSplitedData:%s\n",orginData,beMatchedData,beSplitedData)
+	//log.Printf("2:orginData:%s,beMatchedData:%s,beSplitedData:%s\n",orginData,beMatchedData,beSplitedData)
 	if beMatchedData == orginData {
 		return 0.0
 	}

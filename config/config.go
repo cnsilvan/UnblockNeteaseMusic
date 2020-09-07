@@ -2,10 +2,11 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"github.com/cnsilvan/UnblockNeteaseMusic/version"
+	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,46 +15,52 @@ import (
 var (
 	Port             = flag.Int("p", 80, "specify server port,such as : \"80\"")
 	TLSPort          = flag.Int("sp", 443, "specify server tls port,such as : \"443\"")
-	Source           = flag.String("o", "kuwo:kugou", "specify server source,such as : \"kuwo:kugou\"")
+	Source           = flag.String("o", "kuwo", "specify server source,such as : \"kuwo\"")
 	CertFile         = flag.String("c", "./server.crt", "specify server cert,such as : \"server.crt\"")
 	KeyFile          = flag.String("k", "./server.key", "specify server cert key ,such as : \"server.key\"")
+	LogFile          = flag.String("l", "", "specify log file ,such as : \"/var/log/unblockNeteaseMusic.log\"")
 	Mode             = flag.Int("m", 1, "specify running mode（1:hosts） ,such as : \"1\"")
 	V                = flag.Bool("v", false, "display version info")
 	EndPoint         = flag.Bool("e", false, "replace song url")
 	ForceBestQuality = flag.Bool("b", false, "force the best music quality")
+	SearchLimit     = flag.Int("sl", 0, "set the number of songs searched on other platforms(0-3) ,such as : \"1\"")
 )
 
 func ValidParams() bool {
 	flag.Parse()
 	if flag.NArg() > 0 {
-		fmt.Println("--------------------Invalid Params------------------------")
-		fmt.Printf("Invalid params=%s, num=%d\n", flag.Args(), flag.NArg())
+		log.Println("--------------------Invalid Params------------------------")
+		log.Printf("Invalid params=%s, num=%d\n", flag.Args(), flag.NArg())
 		for i := 0; i < flag.NArg(); i++ {
-			fmt.Printf("arg[%d]=%s\n", i, flag.Arg(i))
+			log.Printf("arg[%d]=%s\n", i, flag.Arg(i))
 		}
 	}
 	if *V {
-		fmt.Println(version.FullVersion())
+		log.Println(version.FullVersion())
 		return false
 	}
 	sources := strings.Split(strings.ToLower(*Source), ":")
 	if len(sources) < 1 {
-		fmt.Printf("source param invalid: %v \n", *Source)
+		log.Printf("source param invalid: %v \n", *Source)
+		return false
+	}
+	if *SearchLimit < 0 || *SearchLimit > 3 {
+		log.Printf("searchLimit param invalid （0-3）: %v \n", *SearchLimit)
 		return false
 	}
 	for _, source := range sources {
 		common.Source = append(common.Source, source)
 	}
 
-	currentPath, error := utils.GetCurrentPath()
-	if error != nil {
-		fmt.Println(error)
+	currentPath, err := utils.GetCurrentPath()
+	if err != nil {
+		log.Println(err)
 		currentPath = ""
 	}
-	//fmt.Println(currentPath)
+	//log.Println(currentPath)
 	certFile, _ := filepath.Abs(*CertFile)
 	keyFile, _ := filepath.Abs(*KeyFile)
-	_, err := os.Open(certFile)
+	_, err = os.Open(certFile)
 	if err != nil {
 		certFile, _ = filepath.Abs(currentPath + *CertFile)
 	}
@@ -63,5 +70,37 @@ func ValidParams() bool {
 	}
 	*CertFile = certFile
 	*KeyFile = keyFile
+	log.SetFlags(log.LstdFlags)
+	if len(strings.TrimSpace(*LogFile)) > 0 {
+		logFilePath, _ := filepath.Abs(*LogFile)
+		logFile, logErr := os.OpenFile(logFilePath, os.O_CREATE|os.O_RDWR|os.O_SYNC|os.O_APPEND, 0666)
+		if logErr != nil {
+			//log.Println("Fail to find unblockNeteaseMusic.log start Failed")
+			//panic(logErr)
+			logFilePath, _ = filepath.Abs(currentPath + *LogFile)
+		} else {
+			logFile.Close()
+		}
+		*LogFile = logFilePath
+		logFile, logErr = os.OpenFile(logFilePath, os.O_CREATE|os.O_RDWR|os.O_SYNC|os.O_APPEND, 0666)
+		if logErr != nil {
+			log.Println("Fail to find " + logFilePath + " start Failed")
+			panic(logErr)
+		}
+		os.Stdout = logFile
+		os.Stderr = logFile
+		fileInfo, err := logFile.Stat()
+		if err != nil {
+			panic(err)
+		}
+		if (fileInfo.Size() >> 20) > 2 { //2M
+			logFile.Seek(0, io.SeekStart)
+			logFile.Truncate(0)
+		}
+		log.SetOutput(logFile)
+	} else {
+
+		log.SetOutput(os.Stdout)
+	}
 	return true
 }
