@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"github.com/cnsilvan/UnblockNeteaseMusic/version"
@@ -36,7 +37,8 @@ func ValidParams() bool {
 		}
 	}
 	if *V {
-		log.Println(version.FullVersion())
+		// active call should use fmt
+		fmt.Println(version.FullVersion())
 		return false
 	}
 	sources := strings.Split(strings.ToLower(*Source), ":")
@@ -99,7 +101,6 @@ func ValidParams() bool {
 		}
 		log.SetOutput(logFile)
 	} else {
-
 		log.SetOutput(os.Stdout)
 	}
 	return true

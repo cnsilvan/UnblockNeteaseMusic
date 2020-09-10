@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -64,7 +65,7 @@ func main() {
 			log.Println("exiting UnblockNeteaseMusic")
 		}
 	} else {
-		log.Println(version.AppVersion())
+		fmt.Println(version.AppVersion())
 	}
 }
 func restoreHosts() {

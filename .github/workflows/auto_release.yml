@@ -1,0 +1,107 @@
+name: release Unblockneteasemusic
+on:
+  push:
+    tags:
+      - "0*"
+jobs:
+  build_luci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          ref: master
+          fetch-depth: 0
+          lfs: true
+      - name: set git identity
+        run: |
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+      - name: init environment
+        run: |
+          sudo -E apt-get -y install upx
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.15.1
+        id: go
+      - name: get dependencies
+        run: |
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+             dep ensure
+          fi
+      - name: build
+        run: |
+          CurrentVersion=${{ github.ref }}
+          CurrentVersion=${CurrentVersion/'refs/tags/'/''}
+          Project=github.com/cnsilvan/UnblockNeteaseMusic
+          Path="$Project/version"
+          ExecName="UnblockNeteaseMusic"
+          GitCommit=$(git rev-parse --short HEAD || echo unsupported)
+          GoVersion=$(go version)
+          BuildTime=$(TZ=UTC-8 date "+%Y-%m-%d %H:%M:%S")
+          platforms=("windows/amd64" "darwin/amd64" "linux/arm" "linux/amd64" "linux/arm5" "linux/mipsle" "linux/mips" "linux/mipsle-softfloat" "linux/mips-softfloat" "linux/386")
+          #platforms=("windows/amd64" "darwin/amd64")
+          buildGo() {
+           GOOS=$1
+           GOARCH=$2
+           GOARM=""
+           GOMIPS=""
+           output_name=$ExecName
+           suffix=""
+           TargetDir=bin/$GOOS/$GOARCH
+           if [ $GOOS = "windows" ]; then
+             output_name+='.exe'
+           fi
+           if [ $GOARCH = "arm5" ]; then
+             GOARCH="arm"
+             GOARM="GOARM=5"
+             suffix="5"
+           fi
+           if [ $GOARCH = "mipsle-softfloat" ]; then
+               GOARCH="mipsle"
+               GOMIPS="GOMIPS=softfloat"
+               suffix="-softfloat"
+           elif [ $GOARCH = "mips-softfloat" ]; then
+               GOARCH="mips"
+               GOMIPS="GOMIPS=softfloat"
+               suffix="-softfloat"
+           fi
+           echo "Building($GOOS/$GOARCH$suffix)..."
+           echo $GOMIPS $GOARM
+           env $GOARM $GOMIPS GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 env GOPROXY=https://goproxy.io go build -ldflags "-X '$Path.Version=$CurrentVersion' -X '$Path.BuildTime=$BuildTime' -X '$Path.GoVersion=$GoVersion' -X '$Path.GitCommit=$GitCommit' -X '$Path.ExGoVersionInfo=$suffix' -w -s" -o $TargetDir/$output_name
+           if [ $? -ne 0 ]; then
+              echo 'An error has occurred! Aborting the script execution...'
+              exit 1
+           fi
+           echo "Upxing..."
+           upx --lzma --best $TargetDir/$output_name
+           cp ./createCertificate.sh $TargetDir/createCertificate.sh
+           ZipName=$ExecName"-"$GOOS"-"$GOARCH"$suffix"
+           zip -j $TargetDir/$ZipName.zip $TargetDir/createCertificate.sh $TargetDir/$output_name
+           cp $TargetDir/$ZipName.zip bin/releaseUpload/
+          }
+          rm -rf bin/
+          mkdir -p bin/releaseUpload
+          for platform in "${platforms[@]}"; do
+           platform_split=(${platform//\// })
+           buildGo ${platform_split[0]} ${platform_split[1]}
+          done
+          echo "--------------------------------------------"
+          echo "Version:" $CurrentVersion
+          echo "Git commit:" $GitCommit
+          echo "Go version:" $GoVersion
+          echo "Build Time:" $BuildTime
+          echo "Build Finish"
+          echo "--------------------------------------------"
+      - name: create release and upload asset
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: bin/releaseUpload/*
+          file_glob: true
+          tag: ${{ github.ref }}
+          overwrite: true
+          body: "[bot] automatically publish packages compiled with the latest source code"
