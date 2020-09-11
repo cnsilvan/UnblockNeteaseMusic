@@ -78,13 +78,21 @@ jobs:
            fi
            echo "Upxing..."
            upx --lzma --best $TargetDir/$output_name
-           cp ./createCertificate.sh $TargetDir/createCertificate.sh
+           cp -rf key/ca.crt $TargetDir/
+           cp -rf key/server.key $TargetDir/
+           cp -rf key/server.crt $TargetDir/
+           cp -rf key/createCertificate.sh $TargetDir/
            ZipName=$ExecName"-"$GOOS"-"$GOARCH"$suffix"
-           zip -j $TargetDir/$ZipName.zip $TargetDir/createCertificate.sh $TargetDir/$output_name
+           zip -j -q -r  $TargetDir/$ZipName.zip $TargetDir
            cp $TargetDir/$ZipName.zip bin/releaseUpload/
           }
           rm -rf bin/
           mkdir -p bin/releaseUpload
+          mkdir -p key
+          cp ./createCertificate.sh key
+          cd key
+          ./createCertificate.sh
+          cd ..
           for platform in "${platforms[@]}"; do
            platform_split=(${platform//\// })
            buildGo ${platform_split[0]} ${platform_split[1]}
