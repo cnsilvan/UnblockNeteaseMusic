@@ -42,7 +42,7 @@ jobs:
           GitCommit=$(git rev-parse --short HEAD || echo unsupported)
           GoVersion=$(go version)
           BuildTime=$(TZ=UTC-8 date "+%Y-%m-%d %H:%M:%S")
-          platforms=("windows/amd64" "darwin/amd64" "linux/arm" "linux/amd64" "linux/arm5" "linux/mipsle" "linux/mips" "linux/mipsle-softfloat" "linux/mips-softfloat" "linux/386")
+          platforms=("windows/amd64" "darwin/amd64" "linux/arm" "linux/amd64" "linux/arm5" "linux/arm6" "linux/arm7" "linux/mipsle" "linux/mips" "linux/mipsle-softfloat" "linux/mips-softfloat" "linux/386")
           #platforms=("windows/amd64" "darwin/amd64")
           buildGo() {
            GOOS=$1
@@ -56,9 +56,17 @@ jobs:
              output_name+='.exe'
            fi
            if [ $GOARCH = "arm5" ]; then
-             GOARCH="arm"
-             GOARM="GOARM=5"
-             suffix="5"
+               GOARCH="arm"
+               GOARM="GOARM=5"
+               suffix="5"
+           elif [ $GOARCH = "arm6" ]; then
+               GOARCH="arm"
+               GOARM="GOARM=6"
+               suffix="6"
+           elif [ $GOARCH = "arm7" ]; then
+               GOARCH="arm"
+               GOARM="GOARM=7"
+               suffix="7"
            fi
            if [ $GOARCH = "mipsle-softfloat" ]; then
                GOARCH="mipsle"
