@@ -21,3 +21,4 @@ keyUsage=digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
 extendedKeyUsage=serverAuth
 subjectAltName=DNS:music.163.com,DNS:*.music.163.com" >"${extFile}"
 openssl x509 -req -extfile "${extFile}" -days 825 -in "${serverCsr}" -CA "${caCrt}" -CAkey "${caKey}" -CAcreateserial -out "${serverCrt}"
+rm -f "${extFile}"
