@@ -49,7 +49,7 @@ func SearchSong(song common.SearchSong) (songs []*common.Song) {
 		if ok && len(list) > 0 {
 			listLength := len(list)
 			for index, matched := range list {
-				if index >= listLength/2 || index > 9 {
+				if index >= listLength/2+1 || index > 9 {
 					break
 				}
 				kowoSong, ok := matched.(common.MapType)

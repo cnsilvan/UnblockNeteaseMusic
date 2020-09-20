@@ -75,7 +75,7 @@ func SearchSong(song common.SearchSong) (songs []*common.Song) {
 					//log.Println(utils.ToJson(miguSong))
 					_, ok := miguSong["copyrightId"].(string)
 					if ok {
-						if index >= listLength/2 || index > 9 {
+						if index >= listLength/2+1 || index > 9 {
 							break
 						}
 						songResult := &common.Song{}

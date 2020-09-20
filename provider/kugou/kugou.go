@@ -51,7 +51,7 @@ func SearchSong(song common.SearchSong) (songs []*common.Song) {
 					listLength := len(listSlice)
 					if listLength > 0 {
 						for index, matched := range listSlice {
-							if index >= listLength/2 || index > 9 {
+							if index >= listLength/2+1 || index > 9 {
 								break
 							}
 							if kugouSong, ok := matched.(common.MapType); ok {
