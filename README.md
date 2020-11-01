@@ -50,7 +50,7 @@ sudo ./UnblockNeteaseMusic
   -p int
     	specify server port,such as : "80" (default 80)
   -sl int
-    	set the number of songs searched on other platforms(0-3) ,such as : "1"
+    	specify the number of songs searched on other platforms(the range is 0 to 3) ,such as : "1"
   -sp int
     	specify server tls port,such as : "443" (default 443)
   -v	display version info

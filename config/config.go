@@ -24,7 +24,7 @@ var (
 	V                = flag.Bool("v", false, "display version info")
 	EndPoint         = flag.Bool("e", false, "replace song url")
 	ForceBestQuality = flag.Bool("b", false, "force the best music quality")
-	SearchLimit     = flag.Int("sl", 0, "set the number of songs searched on other platforms(0-3) ,such as : \"1\"")
+	SearchLimit      = flag.Int("sl", 0, "specify the number of songs searched on other platforms(the range is 0 to 3) ,such as : \"1\"")
 )
 
 func ValidParams() bool {
