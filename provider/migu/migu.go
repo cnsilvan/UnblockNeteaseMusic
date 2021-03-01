@@ -6,17 +6,20 @@ import (
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/hex"
-	"github.com/cnsilvan/UnblockNeteaseMusic/common"
-	"github.com/cnsilvan/UnblockNeteaseMusic/network"
-	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
-	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"log"
 	"math"
 	"net/http"
 	"net/url"
 	"sort"
 	"strings"
+
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/network"
+	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 )
+
+type Migu struct{}
 
 var publicKey = []byte(`
 -----BEGIN PUBLIC KEY-----
@@ -36,7 +39,7 @@ func getRsaPublicKey() (*rsa.PublicKey, error) {
 	return rsaPublicKey, err
 }
 
-func SearchSong(song common.SearchSong) (songs []*common.Song) {
+func (m *Migu) SearchSong(song common.SearchSong) (songs []*common.Song) {
 	song.Keyword = strings.ToUpper(song.Keyword)
 	song.Name = strings.ToUpper(song.Name)
 	song.ArtistsName = strings.ToUpper(song.ArtistsName)
@@ -138,7 +141,7 @@ func SearchSong(song common.SearchSong) (songs []*common.Song) {
 	}
 	return songs
 }
-func GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
+func (m *Migu) GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
 	if cId, ok := song.PlatformUniqueKey["copyrightId"]; ok {
 		if copyrightId := cId.(string); ok {
 			type MiguFormat struct {
@@ -215,11 +218,11 @@ func GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
 
 	return song
 }
-func ParseSong(searchSong common.SearchSong) *common.Song {
+func (m *Migu) ParseSong(searchSong common.SearchSong) *common.Song {
 	song := &common.Song{}
-	songs := SearchSong(searchSong)
+	songs := m.SearchSong(searchSong)
 	if len(songs) > 0 {
-		song = GetSongUrl(common.SearchMusic{Quality: searchSong.Quality}, songs[0])
+		song = m.GetSongUrl(common.SearchMusic{Quality: searchSong.Quality}, songs[0])
 	}
 	return song
 }

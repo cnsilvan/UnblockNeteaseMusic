@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/cnsilvan/UnblockNeteaseMusic/config"
+	"github.com/cnsilvan/UnblockNeteaseMusic/provider"
 	"github.com/cnsilvan/UnblockNeteaseMusic/version"
 
 	//_ "github.com/mkevac/debugcharts" // 可选，添加后可以查看几个实时图表数据
@@ -61,6 +62,7 @@ func main() {
 			}()
 			signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGSEGV)
 			proxy.InitProxy()
+			provider.Init()
 			<-exit
 			log.Println("exiting UnblockNeteaseMusic")
 		}

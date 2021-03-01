@@ -3,18 +3,21 @@ package kuwo
 import (
 	"encoding/base64"
 	"encoding/json"
-	"github.com/cnsilvan/UnblockNeteaseMusic/common"
-	"github.com/cnsilvan/UnblockNeteaseMusic/network"
-	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"log"
 	"net/http"
 	"net/url"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/network"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 )
 
-func SearchSong(song common.SearchSong) (songs []*common.Song) {
+type KuWo struct{}
+
+func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 	song.Keyword = strings.ToUpper(song.Keyword)
 	song.Name = strings.ToUpper(song.Name)
 	song.ArtistsName = strings.ToUpper(song.ArtistsName)
@@ -120,7 +123,7 @@ func SearchSong(song common.SearchSong) (songs []*common.Song) {
 	}
 	return songs
 }
-func GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
+func (m *KuWo) GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
 	if id, ok := song.PlatformUniqueKey["musicId"]; ok {
 		if musicId, ok := id.(string); ok {
 			if httpHeader, ok := song.PlatformUniqueKey["header"]; ok {
@@ -156,8 +159,8 @@ func GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
 						ForbiddenEncodeQuery: true,
 						RemoteUrl:            "http://mobi.kuwo.cn/mobi.s?f=kuwo&q=" + base64.StdEncoding.EncodeToString(Encrypt([]byte("corp=kuwo&p2p=1&type=convert_url2&sig=0&format="+format+"&rid="+musicId+br))),
 						//Host:                 "mobi.kuwo.cn",
-						Header:               header,
-						Proxy:                true,
+						Header: header,
+						Proxy:  true,
 					}
 					//log.Println(clientRequest.RemoteUrl)
 					resp, err := network.Request(&clientRequest)
@@ -183,11 +186,11 @@ func GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
 	}
 	return song
 }
-func ParseSong(searchSong common.SearchSong) *common.Song {
+func (m *KuWo) ParseSong(searchSong common.SearchSong) *common.Song {
 	song := &common.Song{}
-	songs := SearchSong(searchSong)
+	songs := m.SearchSong(searchSong)
 	if len(songs) > 0 {
-		song = GetSongUrl(common.SearchMusic{Quality: searchSong.Quality}, songs[0])
+		song = m.GetSongUrl(common.SearchMusic{Quality: searchSong.Quality}, songs[0])
 	}
 	return song
 }

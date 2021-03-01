@@ -23,7 +23,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: ^1.15.1
+          go-version: ^1.16
         id: go
       - name: get dependencies
         run: |
@@ -42,11 +42,11 @@ jobs:
           GitCommit=$(git rev-parse --short HEAD || echo unsupported)
           GoVersion=$(go version)
           BuildTime=$(TZ=UTC-8 date "+%Y-%m-%d %H:%M:%S")
-          platforms=("windows/amd64" "darwin/amd64" "linux/amd64" "linux/arm5" "linux/arm"  "linux/arm7" "linux/arm64" "linux/mipsle" "linux/mips" "linux/mipsle-softfloat" "linux/mips-softfloat" "linux/386")
-          #platforms=("windows/amd64" "darwin/amd64")
+          platforms=("windows/amd64" "darwin/amd64" "darwin/arm64" "ios/arm64" "linux/amd64" "linux/arm5" "linux/arm"  "linux/arm7" "linux/arm64" "linux/mipsle" "linux/mips" "linux/mipsle-softfloat" "linux/mips-softfloat" "linux/386")
           buildGo() {
            GOOS=$1
            GOARCH=$2
+           CGO="CGO_ENABLED=0"
            GOARM=""
            GOMIPS=""
            output_name=$ExecName
@@ -54,6 +54,9 @@ jobs:
            TargetDir=bin/$GOOS/$GOARCH
            if [ $GOOS = "windows" ]; then
              output_name+='.exe'
+           fi
+           if [ $GOOS = "ios" ]; then
+             CGO="CGO_ENABLED=1 CC=$(go env GOROOT)/misc/ios/clangwrap.sh"
            fi
            if [ $GOARCH = "arm5" ]; then
                GOARCH="arm"
@@ -79,7 +82,7 @@ jobs:
            fi
            echo "Building($GOOS/$GOARCH$suffix)..."
            echo $GOMIPS $GOARM
-           env $GOARM $GOMIPS GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 env GOPROXY=https://goproxy.io go build -ldflags "-X '$Path.Version=$CurrentVersion' -X '$Path.BuildTime=$BuildTime' -X '$Path.GoVersion=$GoVersion' -X '$Path.GitCommit=$GitCommit' -X '$Path.ExGoVersionInfo=$suffix' -w -s" -o $TargetDir/$output_name
+           env $GOARM $GOMIPS GOOS=$GOOS GOARCH=$GOARCH $CGO env GOPROXY=https://goproxy.io go build -ldflags "-X '$Path.Version=$CurrentVersion' -X '$Path.BuildTime=$BuildTime' -X '$Path.GoVersion=$GoVersion' -X '$Path.GitCommit=$GitCommit' -X '$Path.ExGoVersionInfo=$suffix' -w -s" -o $TargetDir/$output_name
            if [ $? -ne 0 ]; then
               echo 'An error has occurred! Aborting the script execution...'
               exit 1

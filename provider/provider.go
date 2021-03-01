@@ -21,6 +21,41 @@ import (
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 )
 
+type Provider interface {
+	SearchSong(song common.SearchSong) (songs []*common.Song)
+	GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song
+	//search&get url
+	ParseSong(searchSong common.SearchSong) *common.Song
+}
+
+var providers map[string]Provider
+
+func Init() {
+	providers = make(map[string]Provider)
+	for _, source := range common.Source {
+		providers[source] = NewProvider(source)
+	}
+}
+func NewProvider(kind string) Provider {
+	switch kind {
+	case "kuwo":
+		return &kuwo.KuWo{}
+	case "kugou":
+		return &kugou.KuGou{}
+	case "migu":
+		return &migu.Migu{}
+	default:
+		return &kuwo.KuWo{}
+	}
+}
+func GetProvider(kind string) Provider {
+	if p, ok := providers[kind]; ok {
+		return p
+	}
+	return NewProvider(kind)
+
+}
+
 func UpdateCacheMd5(music common.SearchMusic, md5 string) {
 	if song, ok := cache.GetSong(music); ok {
 		song.Md5 = md5
@@ -43,20 +78,18 @@ func Find(music common.SearchMusic) common.Song {
 		}
 		//log.Println("search:", utils.ToJson(song))
 		if strings.Index(music.Id, string(common.StartTag)) == 0 {
-			now := time.Now().UnixNano() / 1e6
+			now := time.Now()
 			var re *common.Song
 			if strings.Index(music.Id, string(common.KuGouTag)) == 0 {
-				re = calculateSongInfo(kugou.GetSongUrl(music, song))
-
+				re = calculateSongInfo(GetProvider("kugou").GetSongUrl(music, song))
 			} else if strings.Index(music.Id, string(common.KuWoTag)) == 0 {
-				re = calculateSongInfo(kuwo.GetSongUrl(music, song))
-
+				re = calculateSongInfo(GetProvider("kuwo").GetSongUrl(music, song))
 			} else if strings.Index(music.Id, string(common.MiGuTag)) == 0 {
-				re = calculateSongInfo(migu.GetSongUrl(music, song))
+				re = calculateSongInfo(GetProvider("migu").GetSongUrl(music, song))
 			} else {
 
 			}
-			log.Println("consumed:", (time.Now().UnixNano()/1e6)-now, "ms")
+			log.Println("consumed:", time.Since(now))
 			log.Println(utils.ToJson(re))
 			if re != nil && len(re.Url) > 0 {
 				cache.PutSong(music, re)
@@ -149,7 +182,7 @@ func parseSongFn(key common.MapType, music common.SearchMusic) *common.Song {
 	}
 	key["musicQuality"] = music.Quality
 	var ch = make(chan *common.Song)
-	now := time.Now().UnixNano() / 1e6
+	now := time.Now()
 	searchSong := common.SearchSong{
 		Keyword: searchKeyword, Name: searchSongName,
 		ArtistsName: searchArtistsName, Quality: music.Quality,
@@ -157,7 +190,7 @@ func parseSongFn(key common.MapType, music common.SearchMusic) *common.Song {
 	}
 	songs := getSongFromAllSource(searchSong, ch)
 	//log.Println(utils.ToJson(songs))
-	log.Println("consumed:", (time.Now().UnixNano()/1e6)-now, "ms")
+	log.Println("consumed:", time.Since(now))
 	result := &common.Song{}
 	result.Size = 0
 	for _, song := range songs {
@@ -192,27 +225,11 @@ func parseSongFn(key common.MapType, music common.SearchMusic) *common.Song {
 func getSongFromAllSource(key common.SearchSong, ch chan *common.Song) []*common.Song {
 	var songs []*common.Song
 	sum := 0
-	for _, source := range common.Source {
-		switch source {
-		case "kuwo":
-			go utils.PanicWrapper(func() {
-				getSongFromKuWo(key, ch)
-			})
-			sum++
-		case "kugou":
-			go utils.PanicWrapper(func() {
-				getSongFromKuGou(key, ch)
-			})
-			sum++
-		case "migu":
-			go utils.PanicWrapper(func() {
-				getSongFromMiGu(key, ch)
-			})
-			sum++
-			//case "qq":
-			//	go getSongFromQQ(key, ch)
-			//	sum++
-		}
+	for _, p := range providers {
+		go utils.PanicWrapper(func() {
+			ch <- calculateSongInfo(p.ParseSong(key))
+		})
+		sum++
 	}
 	for {
 		select {
@@ -229,41 +246,16 @@ func getSongFromAllSource(key common.SearchSong, ch chan *common.Song) []*common
 		}
 	}
 }
-func getSongFromKuWo(key common.SearchSong, ch chan *common.Song) {
-	ch <- calculateSongInfo(kuwo.ParseSong(key))
-}
-func getSongFromKuGou(key common.SearchSong, ch chan *common.Song) {
-	ch <- calculateSongInfo(kugou.ParseSong(key))
-}
-func getSongFromMiGu(key common.SearchSong, ch chan *common.Song) {
-	ch <- calculateSongInfo(migu.ParseSong(key))
-}
-
-//func getSongFromQQ(key common.MapType, ch chan common.Song) {
-//	ch <- calculateSongInfo(qq.SearchSong(key))
-//}
 
 func SearchSongFromAllSource(key common.SearchSong) []*common.Song {
 	var songs []*common.Song
 	ch := make(chan []*common.Song)
 	sum := 0
-	for _, source := range common.Source {
-		switch source {
-		case "kuwo":
-			go utils.PanicWrapper(func() {
-				searchSongFromKuWo(key, ch)
-			})
-			sum++
-		case "kugou":
-			go utils.PanicWrapper(func() { searchSongFromKuGou(key, ch) })
-			sum++
-		case "migu":
-			go utils.PanicWrapper(func() { searchSongFromMiGu(key, ch) })
-			sum++
-			//case "qq":
-			//	go getSongFromQQ(key, ch)
-			//	sum++
-		}
+	for _, p := range providers {
+		go utils.PanicWrapper(func() {
+			ch <- p.SearchSong(key)
+		})
+		sum++
 	}
 	for {
 		select {
@@ -277,16 +269,6 @@ func SearchSongFromAllSource(key common.SearchSong) []*common.Song {
 			return songs
 		}
 	}
-}
-func searchSongFromKuWo(key common.SearchSong, ch chan []*common.Song) {
-
-	ch <- kuwo.SearchSong(key)
-}
-func searchSongFromKuGou(key common.SearchSong, ch chan []*common.Song) {
-	ch <- kugou.SearchSong(key)
-}
-func searchSongFromMiGu(key common.SearchSong, ch chan []*common.Song) {
-	ch <- migu.SearchSong(key)
 }
 func calculateSongInfo(song *common.Song) *common.Song {
 	if len(song.Url) > 0 {

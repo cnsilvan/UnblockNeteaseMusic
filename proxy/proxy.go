@@ -60,7 +60,7 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 	requestURI := request.RequestURI
 	if i := strings.Index(requestURI, "/unblockmusic/"); len(requestURI) > 0 && i != -1 {
 		realMusicUrl := requestURI[i+len("/unblockmusic/"):]
-		//log.Printf("Download:%s(%s)\n", realMusicUrl, request.Method)
+		// log.Printf("Download:%s(%s)\n", realMusicUrl, request.Method)
 		realURI, err := url.Parse(realMusicUrl)
 		if err != nil {
 			log.Println("url.Parse error:", err)
@@ -96,20 +96,19 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 			return
 		}
 	} else {
-
-		path := request.URL.Path
-		rawQuery := request.URL.RawQuery
-		uriBytes := []byte(path)
-		left := uriBytes[:(len(uriBytes) / 2)]
-		right := uriBytes[len(uriBytes)/2:]
 		hostStr := request.URL.Host
-		//log.Println(request.URL.String(), ",", request.Method)
 		if len(hostStr) == 0 {
 			hostStr = request.Host
 		}
 		if len(request.URL.Port()) > 0 && strings.Contains(hostStr, ":"+request.URL.Port()) {
 			hostStr = strings.Replace(hostStr, ":"+request.URL.Port(), "", 1)
 		}
+		path := request.URL.Path
+		rawQuery := request.URL.RawQuery
+		uriBytes := []byte(path)
+		left := uriBytes[:(len(uriBytes) / 2)]
+		right := uriBytes[len(uriBytes)/2:]
+
 		scheme := "http://"
 		if request.TLS != nil || request.URL.Port() == "443" {
 			scheme = "https://"
@@ -124,18 +123,44 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 				break
 			}
 		}
-		if infinite || strings.Contains(hostStr, "localhost") || strings.Contains(hostStr, "127.0.0.1") || strings.Contains(hostStr, "0.0.0.0") || (len(path) > 1 && strings.Count(path, "/") > 1 && bytes.EqualFold(left, right)) {
+		if infinite || strings.Contains(hostStr, "localhost") ||
+			strings.Contains(hostStr, "127.0.0.1") ||
+			strings.Contains(hostStr, "0.0.0.0") ||
+			(len(path) > 1 && strings.Count(path, "/") > 1 && bytes.EqualFold(left, right)) {
 			//cause infinite loop
 			requestURI = scheme + request.Host
+			pathA := ""
 			if bytes.EqualFold(left, right) {
-				requestURI += string(left)
+				pathA = string(left)
 			} else {
-				requestURI += string(uriBytes)
+				pathA = string(uriBytes)
 			}
+			requestURI += pathA
 			log.Printf("Abandon:%s\n", requestURI)
-			resp.WriteHeader(200)
-			resp.Write([]byte(version.AppVersion()))
-			return
+			for strings.HasPrefix(pathA, "/") {
+				pathA = strings.TrimPrefix(pathA, "/")
+			}
+			// log.Println(scheme, pathA)
+			requestURI = scheme + pathA
+			fixedUrl, err := url.Parse(requestURI)
+			if err != nil {
+				log.Printf("Try Fix :%s,error:%s\n", requestURI, err)
+				resp.WriteHeader(200)
+				resp.Write([]byte(version.AppVersion()))
+				return
+			} else if fixedUrl.Host == "" || fixedUrl.Host == "favicon.ico" {
+				resp.WriteHeader(200)
+				resp.Write([]byte(version.AppVersion()))
+				return
+			}
+			log.Printf("Try Fix:%s\n", requestURI)
+			request.URL = fixedUrl
+			hostStr = fixedUrl.Host
+			path = fixedUrl.Path
+			rawQuery = fixedUrl.RawQuery
+			if len(request.URL.Port()) > 0 && strings.Contains(hostStr, ":"+request.URL.Port()) {
+				hostStr = strings.Replace(hostStr, ":"+request.URL.Port(), "", 1)
+			}
 		}
 		request.Host = hostStr
 		if proxyDomain, ok := common.ProxyDomain[hostStr]; ok && !strings.Contains(path, "stream") {
@@ -257,6 +282,7 @@ func proxyConnectLocalhost(rw http.ResponseWriter, req *http.Request) {
 	localUrl := "localhost:"
 	var server net.Conn
 	port := req.URL.Port()
+	// log.Println("HTTP Server support hijacking :", req.URL.String())
 	if port == "80" || port == strconv.Itoa(*config.Port) {
 		localUrl = localUrl + strconv.Itoa(*config.Port)
 		server, err = net.DialTimeout("tcp", localUrl, 15*time.Second)

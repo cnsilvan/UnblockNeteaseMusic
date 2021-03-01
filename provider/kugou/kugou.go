@@ -3,21 +3,24 @@ package kuwo
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/cnsilvan/UnblockNeteaseMusic/common"
-	"github.com/cnsilvan/UnblockNeteaseMusic/network"
-	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"log"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/network"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 )
 
 const (
 	APIGetSongURL = "http://trackercdn.kugou.com/i/v2/?pid=2&behavior=play&cmd=25"
 )
 
-func SearchSong(song common.SearchSong) (songs []*common.Song) {
+type KuGou struct{}
+
+func (m *KuGou) SearchSong(song common.SearchSong) (songs []*common.Song) {
 	song.Keyword = strings.ToUpper(song.Keyword)
 	song.Name = strings.ToUpper(song.Name)
 	song.ArtistsName = strings.ToUpper(song.ArtistsName)
@@ -119,7 +122,7 @@ func SearchSong(song common.SearchSong) (songs []*common.Song) {
 	}
 	return songs
 }
-func GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
+func (m *KuGou) GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
 	//'album_audio_id' => '32028735',
 	//	'album_id' => '958812',
 	//	'appid' => '1000',
@@ -207,11 +210,11 @@ func GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
 	return song
 }
 
-func ParseSong(searchSong common.SearchSong) *common.Song {
+func (m *KuGou) ParseSong(searchSong common.SearchSong) *common.Song {
 	song := &common.Song{}
-	songs := SearchSong(searchSong)
+	songs := m.SearchSong(searchSong)
 	if len(songs) > 0 {
-		song = GetSongUrl(common.SearchMusic{Quality: searchSong.Quality}, songs[0])
+		song = m.GetSongUrl(common.SearchMusic{Quality: searchSong.Quality}, songs[0])
 	}
 	return song
 }
