@@ -11,7 +11,7 @@
 * 低内存、高效率
 * 暂时支持酷狗、酷我 、咪咕的源
 * 支持客户端选择音质（暂时支持酷我、咪咕）
-* 支持显示其他平台搜索结果
+* 支持在搜索页直接显示其他平台搜索结果
 * 学习过程中的产物，随缘更新
 
 # 运行
@@ -38,7 +38,7 @@ sudo ./UnblockNeteaseMusic
   -b	force the best music quality
   -c string
     	specify server cert,such as : "server.crt" (default "./server.crt")
-  -e	replace song url
+  -e	enable replace song url
   -k string
     	specify server cert key ,such as : "server.key" (default "./server.key")
   -l string
@@ -64,7 +64,7 @@ sudo ./UnblockNeteaseMusic
 3. 网易云APP能用就别升级，不保证新版本可以使用
 4. 开启多个源会自动选择最优匹配歌曲，并发的支持使得同时多个源获取并不会增加多少耗时，如果发现一直获取很慢，使用排除法来检查是否某一个源无法使用
 6. 0.2.3版本后默认音质将根据客户端选择的音质，启动参数加上`-b`可以设置强制音质优先
-7. 0.2.5版本后支持直接在搜索页面显示其他平台搜索结果，如遇错误，请关闭该功能
+7. 0.2.5版本后支持直接在搜索页面显示其他平台搜索结果，如遇错误，请关闭该功能(参数为 `-sl 0`)
 ### IOS信任证书步骤
 
 1. 安装证书--设置-描述文件-安装
@@ -75,7 +75,7 @@ sudo ./UnblockNeteaseMusic
 1. windows版本的网易云音乐需要在应用内 设置代理 Http地址为「HttpProxy」下任意地址 端口 80
 2. Linux 客户端 (1.2 版本以上需要在终端启动网易云客户端时增加 --ignore-certificate-errors 参数)
 3. ios客户端需要信任根证书且运行UnblockNeteaseMusic时 加上 -e 参数
-4. android客户端使用咪咕源下载歌曲时需要运行UnblockNeteaseMusic时 加上 -e 参数（其他情况无法使用时，尝试加上 -e 参数）
+4. android客户端使用咪咕源下载歌曲需要在运行UnblockNeteaseMusic时 加上 -e 参数（其他情况无法使用时，尝试加上 -e 参数）
 5. 咪咕源貌似部分宽带无法使用
 6. 最新版app采用第三方登录会失败，失败的同学选择手机号登录吧
 
