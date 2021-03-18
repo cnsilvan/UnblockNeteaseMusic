@@ -194,16 +194,7 @@ func parseSongFn(key common.MapType, music common.SearchMusic) *common.Song {
 	result := &common.Song{}
 	result.Size = 0
 	for _, song := range songs {
-		//songNameKeys := utils.ParseSongNameKeyWord(song.Name)
-		//log.Println("songNameKeys:", strings.Join(songNameKeys, "、"))
-		//songNameSores := utils.CalMatchScores(searchSongName, songNameKeys)
-		//log.Println("songNameSores:", songNameSores)
-		//artistKeys := utils.ParseSingerKeyWord(song.Artist)
-		//log.Println("artistKeys:", strings.Join(artistKeys, "、"))
-		//artistsNameSores := utils.CalMatchScores(searchArtistsName, artistKeys)
-		//log.Println("artistsNameSores:", artistsNameSores)
-		//songMatchScore := songNameSores*0.6 + artistsNameSores*0.4
-		//song.MatchScore = songMatchScore
+
 		if song.MatchScore > result.MatchScore {
 			result = song
 		} else if song.MatchScore == result.MatchScore && song.Size > result.Size {
@@ -226,8 +217,9 @@ func getSongFromAllSource(key common.SearchSong, ch chan *common.Song) []*common
 	var songs []*common.Song
 	sum := 0
 	for _, p := range providers {
+		pt := p
 		go utils.PanicWrapper(func() {
-			ch <- calculateSongInfo(p.ParseSong(key))
+			ch <- calculateSongInfo(pt.ParseSong(key))
 		})
 		sum++
 	}
@@ -252,8 +244,9 @@ func SearchSongFromAllSource(key common.SearchSong) []*common.Song {
 	ch := make(chan []*common.Song)
 	sum := 0
 	for _, p := range providers {
+		pt := p
 		go utils.PanicWrapper(func() {
-			ch <- p.SearchSong(key)
+			ch <- pt.SearchSong(key)
 		})
 		sum++
 	}

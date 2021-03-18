@@ -3,14 +3,15 @@ package config
 import (
 	"flag"
 	"fmt"
-	"github.com/cnsilvan/UnblockNeteaseMusic/common"
-	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
-	"github.com/cnsilvan/UnblockNeteaseMusic/version"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
+	"github.com/cnsilvan/UnblockNeteaseMusic/version"
 )
 
 var (
@@ -22,7 +23,7 @@ var (
 	LogFile          = flag.String("l", "", "specify log file ,such as : \"/var/log/unblockNeteaseMusic.log\"")
 	Mode             = flag.Int("m", 1, "specify running mode（1:hosts） ,such as : \"1\"")
 	V                = flag.Bool("v", false, "display version info")
-	EndPoint         = flag.Bool("e", false, "replace song url")
+	EndPoint         = flag.Bool("e", false, "enable replace song url")
 	ForceBestQuality = flag.Bool("b", false, "force the best music quality")
 	SearchLimit      = flag.Int("sl", 0, "specify the number of songs searched on other platforms(the range is 0 to 3) ,such as : \"1\"")
 )
