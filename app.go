@@ -19,7 +19,6 @@ import (
 )
 
 func main() {
-
 	//log.Println("--------------------Version--------------------")
 	//fmt.Println(version.AppVersion())
 	defer func() {
@@ -60,7 +59,7 @@ func main() {
 				restoreHosts()
 				exit <- true
 			}()
-			signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGSEGV)
+			signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGSEGV, syscall.SIGKILL)
 			proxy.InitProxy()
 			provider.Init()
 			<-exit

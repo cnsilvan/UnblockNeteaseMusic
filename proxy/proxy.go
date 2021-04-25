@@ -193,7 +193,6 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 				processor.RequestAfter(request, response, netease)
 				for name, values := range response.Header {
 					resp.Header()[name] = values
-					//log.Println(name,"=",values)
 				}
 				resp.WriteHeader(response.StatusCode)
 				_, err = io.Copy(resp, response.Body)
@@ -202,13 +201,15 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 					return
 				}
 				defer response.Body.Close()
-				//resp.Write(body)
 			}
 		} else {
 			if request.Method == http.MethodConnect {
 				proxyConnect(resp, request)
 			} else {
-				if proxyDomain, ok := common.HostDomain[hostStr]; ok {
+				 if proxyDomain, ok := common.HostDomain[hostStr]; ok {
+					 if *config.Mode != 1 {
+						 proxyDomain = hostStr
+					 }
 					if len(request.URL.Port()) > 0 {
 						proxyDomain = proxyDomain + ":" + request.URL.Port()
 					}
@@ -223,16 +224,12 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 					requestURI = requestURI + "?" + rawQuery
 				}
 
-				//proxy := httputil.NewSingleHostReverseProxy(remote)
-				for hostDoman, _ := range common.HostDomain {
-					if strings.Contains(request.Referer(), hostDoman) {
+				for hostDomain, _ := range common.HostDomain {
+					if strings.Contains(request.Referer(), hostDomain) {
 						request.Header.Set("referer", request.Host)
 						break
 					}
 				}
-				//for key, values := range request.Header {
-				//	log.Println(key, "=", values)
-				//}
 				log.Printf("Direct:%s(%s)(%s)\n", requestURI, request.Host, request.Method)
 				response, err := network.Request(&network.ClientRequest{
 					Method:    request.Method,
@@ -250,7 +247,6 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 				defer response.Body.Close()
 				for name, values := range response.Header {
 					resp.Header()[name] = values
-					//log.Println(name,"=",values)
 				}
 				resp.WriteHeader(response.StatusCode)
 				_, err = io.Copy(resp, response.Body)
@@ -258,8 +254,6 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 					log.Println("io.Copy error:", err)
 					return
 				}
-
-				//proxy.ServeHTTP(resp, request)
 			}
 		}
 	}

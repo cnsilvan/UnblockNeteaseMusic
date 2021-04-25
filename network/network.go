@@ -3,6 +3,7 @@ package network
 import (
 	"bytes"
 	"crypto/tls"
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"io"
 	"io/ioutil"
 	"log"
@@ -11,12 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 )
 
 var (
-	httpClient *http.Client
+	httpClient   *http.Client
+	directClient *http.Client
 )
 
 func init() {
@@ -34,9 +35,14 @@ func init() {
 		ResponseHeaderTimeout: 5 * time.Second,
 		MaxConnsPerHost:       100,
 	}
+	directClient = &http.Client{
+		Transport: tr.Clone(),
+	}
+	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	httpClient = &http.Client{
 		Transport: tr,
 	}
+
 }
 
 type ClientRequest struct {
@@ -84,18 +90,6 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 			request.URL.Scheme = "http"
 		}
 	}
-	tr := httpClient.Transport.(*http.Transport)
-	tr.TLSClientConfig = nil
-	// if request.URL.Scheme == "https" || request.TLS != nil {
-	// fix redirect to https://music.163.com
-	if _, ok := common.HostDomain[request.Host]; ok {
-		tr.TLSClientConfig = &tls.Config{}
-		// verify music.163.com certificate
-		tr.TLSClientConfig.ServerName = request.Host //it doesn't contain any IP SANs
-		// redirect to music.163.com will need verify self
-		tr.TLSClientConfig.InsecureSkipVerify = true
-	}
-	// }
 
 	if proxy { //keep headers&cookies for Direct
 		if header != nil {
@@ -137,7 +131,12 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 	request.Header.Set("accept-encoding", acceptEncoding)
 	request.Header.Set("accept-language", acceptLanguage)
 	request.Header.Set("user-agent", userAgent)
-	resp, err = httpClient.Do(request)
+	client := directClient
+	if _, ok := common.HostDomain[request.Host]; ok {
+		client = httpClient
+	}
+	// }
+	resp, err = client.Do(request)
 	if err != nil {
 		//log.Println(request.Method, request.URL.String(), host)
 		log.Printf("http.Client.Do fail:%v\n", err)

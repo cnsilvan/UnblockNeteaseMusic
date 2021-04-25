@@ -189,7 +189,6 @@ func parseSongFn(key common.MapType, music common.SearchMusic) *common.Song {
 		OrderBy: common.MatchedScoreDesc, Limit: 1,
 	}
 	songs := getSongFromAllSource(searchSong, ch)
-	//log.Println(utils.ToJson(songs))
 	log.Println("consumed:", time.Since(now))
 	result := &common.Song{}
 	result.Size = 0

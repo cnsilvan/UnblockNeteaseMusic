@@ -100,7 +100,6 @@ func RequestBefore(request *http.Request) *Netease {
 			decryptECBBytes, _ := crypto.AesDecryptECB(requestBodyH[:length], []byte(linuxApiKey))
 			var result common.MapType
 			result = utils.ParseJson(decryptECBBytes)
-			//log.Println(utils.ToJson(result))
 			urlM, ok := result["url"].(string)
 			if ok {
 				netease.Path = urlM
@@ -109,9 +108,6 @@ func RequestBefore(request *http.Request) *Netease {
 			if ok {
 				netease.Params = params
 			}
-
-			//log.Println("forward")
-			//log.Printf("path:%s \nparams:%s\n", netease.Path, netease.Params)
 		} else if len(requestBody) > 7 {
 			requestBodyH := make([]byte, len(requestBody))
 			length, _ := hex.Decode(requestBodyH, requestBody[7:len(requestBody)-len(pad)])
@@ -120,9 +116,7 @@ func RequestBefore(request *http.Request) *Netease {
 			data := strings.Split(decryptString, "-36cd479b6b5-")
 			netease.Path = data[0]
 			netease.Params = utils.ParseJson(bytes.NewBufferString(data[1]).Bytes())
-			// log.Println(utils.ToJson(netease))
-			//log.Printf("path:%s \nparams:%s\n", netease.Path, netease.Params)
-		}
+			}
 		netease.Path = strings.ReplaceAll(netease.Path, "https://music.163.com", "")
 		netease.Path = strings.ReplaceAll(netease.Path, "http://music.163.com", "")
 		netease.Path = utils.ReplaceAll(netease.Path, `\/\d*$`, "")
@@ -154,7 +148,6 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 	pass := false
 	if _, ok := Path[netease.Path]; ok {
 		pass = true
-		//log.Println(utils.ToJson(netease))
 	}
 	if pass && response.StatusCode == 200 {
 
@@ -172,7 +165,6 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			if enableGzip {
 				decryptECBBytes, _ = utils.UnGzip(decryptECBBytes)
 			}
-			//log.Println(string(decryptECBBytes), netease)
 			aeskey := eApiKey
 			if netease.Forward {
 				aeskey = linuxApiKey
@@ -182,16 +174,12 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			result := utils.ParseJson(decryptECBBytes)
 			netease.JsonBody = result
 
-			//if strings.Contains(netease.Path,"batch"){
-			// log.Println(utils.ToJson(netease))
-			//}
 			modified := false
 			codeN, ok := netease.JsonBody["code"].(json.Number)
 			code := "200"
 			if ok {
 				code = codeN.String()
 			}
-			//log.Println(utils.ToJson(netease))
 			if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
 				modified = tryCollect(netease, request)
 			} else if !netease.Web && (code == "401" || code == "512") && strings.EqualFold(netease.Path, "/api/song/like") {
