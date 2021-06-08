@@ -40,7 +40,7 @@ func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 				maxIndex = 10
 			}
 			for index, matched := range list {
-				if index >= maxIndex {
+				if index >= 1 {//kuwo list order by score default
 					break
 				}
 				kuWoSong, ok := matched.(common.MapType)
