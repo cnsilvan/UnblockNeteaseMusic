@@ -2,6 +2,7 @@ package kuwo
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider/base"
 	"log"
 	"net/http"
@@ -40,12 +41,18 @@ func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 				maxIndex = 10
 			}
 			for index, matched := range list {
-				if index >= 1 {//kuwo list order by score default
+				if index >= 1 { //kuwo list order by score default
 					break
 				}
 				kuWoSong, ok := matched.(common.MapType)
 				if ok {
-					rid, ok := kuWoSong["rid"].(string)
+					rid, ok := kuWoSong["rid"].(json.Number)
+					rids:=""
+					if !ok {
+						rids, ok = kuWoSong["rid"].(string)
+					}else{
+						rids=rid.String()
+					}
 					if ok {
 						songResult := &common.Song{}
 						singerName, _ := kuWoSong["artist"].(string)
@@ -56,8 +63,8 @@ func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 						songResult.PlatformUniqueKey["UnKeyWord"] = song.Keyword
 						songResult.Source = "kuwo"
 						songResult.PlatformUniqueKey["header"] = header
-						songResult.PlatformUniqueKey["musicId"] = rid
-						songResult.Id = rid
+						songResult.PlatformUniqueKey["musicId"] = rids
+						songResult.Id = rids
 						if len(songResult.Id) > 0 {
 							songResult.Id = string(common.KuWoTag) + songResult.Id
 						}

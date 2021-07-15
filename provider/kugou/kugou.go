@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	APIGetSongURL = "http://trackercdn.kugou.com/i/v2/?pid=2&behavior=play&cmd=25"
+	APIGetSongURL = "http://trackercdn.kugou.com/i/v2/?"
 )
 
 type KuGou struct{}
@@ -24,7 +24,7 @@ func (m *KuGou) SearchSong(song common.SearchSong) (songs []*common.Song) {
 	song = base.PreSearchSong(song)
 	cookies := getCookies()
 	result, err := base.Fetch(
-		"http://songsearch.kugou.com/song_search_v2?keyword="+song.Keyword+"&page=1",
+		"http://mobilecdn.kugou.com/api/v3/search/song?keyword="+song.Keyword+"&page=1&pagesize=10",
 		cookies, nil, true)
 	if err != nil {
 		log.Println(err)
@@ -33,7 +33,7 @@ func (m *KuGou) SearchSong(song common.SearchSong) (songs []*common.Song) {
 	data := result["data"]
 	if data != nil {
 		if dMap, ok := data.(common.MapType); ok {
-			if lists, ok := dMap["lists"]; ok {
+			if lists, ok := dMap["info"]; ok {
 				if listSlice, ok := lists.(common.SliceType); ok {
 					listLength := len(listSlice)
 					if listLength > 0 {
@@ -46,19 +46,20 @@ func (m *KuGou) SearchSong(song common.SearchSong) (songs []*common.Song) {
 								break
 							}
 							if kugouSong, ok := matched.(common.MapType); ok {
-								if _, ok := kugouSong["FileHash"].(string); ok {
+								if _, ok := kugouSong["hash"].(string); ok {
 									songResult := &common.Song{}
-									singerName, _ := kugouSong["SingerName"].(string)
-									songName, _ := kugouSong["SongName"].(string)
+									singerName, _ := kugouSong["singername"].(string)
+									songName, _ := kugouSong["songname"].(string)
 									songResult.PlatformUniqueKey = kugouSong
 									songResult.PlatformUniqueKey["UnKeyWord"] = song.Keyword
 									songResult.Source = "kugou"
 									songResult.Name = songName
 									songResult.Artist = singerName
 									songResult.Artist = strings.ReplaceAll(singerName, " ", "")
-									songResult.AlbumName, _ = kugouSong["AlbumName"].(string)
-									songResult.Id, ok = kugouSong["ID"].(string)
-									if len(songResult.Id) > 0 {
+									songResult.AlbumName, _ = kugouSong["album_name"].(string)
+									audioId, ok := kugouSong["audio_id"].(json.Number)
+									songResult.Id = audioId.String()
+									if ok && len(songResult.Id) > 0 {
 										songResult.Id = string(common.KuGouTag) + songResult.Id
 									}
 									songResult.MatchScore, ok = base.CalScore(song, songName, singerName, index, maxIndex)
@@ -82,12 +83,30 @@ func (m *KuGou) SearchSong(song common.SearchSong) (songs []*common.Song) {
 	return base.AfterSearchSong(song, songs)
 }
 func (m *KuGou) GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
-
-	if fileHash, ok := song.PlatformUniqueKey["FileHash"].(string); ok && len(fileHash) > 0 {
+	hashKey := "hash"
+	switch searchSong.Quality {
+	case common.Standard:
+		hashKey = "hash"
+	case common.Higher:
+		hashKey = "hash"
+	case common.ExHigh:
+		hashKey = "320hash"
+	case common.Lossless:
+		hashKey = "sqhash"
+	default:
+		hashKey = "hash"
+	}
+	fileHash, ok := song.PlatformUniqueKey[hashKey].(string)
+	if !ok {
+		fileHash, ok = song.PlatformUniqueKey["hash"].(string)
+	}
+	albumId, ok := song.PlatformUniqueKey["album_id"].(string)
+	if ok && len(fileHash) > 0 {
 		clientRequest := network.ClientRequest{
-			Method:    http.MethodGet,
-			RemoteUrl: APIGetSongURL + "&hash=" + fileHash + "&key=" + utils.MD5([]byte(fileHash+"kgcloudv2")),
-			Host:      "trackercdnbj.kugou.com",
+			Method: http.MethodGet,
+			RemoteUrl: APIGetSongURL + "key=" + utils.MD5([]byte(fileHash+"kgcloudv2")) + "&hash=" +
+				fileHash + "&appid=1005&pid=2&cmd=25&behavior=play&album_id=" + albumId,
+			//Host:      "trackercdnbj.kugou.com",
 			//Cookies:              cookies,
 			Header:               nil,
 			ForbiddenEncodeQuery: true,
@@ -104,7 +123,7 @@ func (m *KuGou) GetSongUrl(searchSong common.SearchMusic, song *common.Song) *co
 		status, ok := songData["status"].(json.Number)
 		if !ok || status.String() != "1" {
 			log.Println(song.PlatformUniqueKey["UnKeyWord"].(string) + "，该歌曲酷狗版权保护")
-			log.Println(utils.ToJson(songData))
+			//log.Println(utils.ToJson(songData))
 			return song
 		}
 		songUrls, ok := songData["url"].(common.SliceType)
