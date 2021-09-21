@@ -61,6 +61,7 @@ var (
 		"/api/v1/discovery/recommend/songs":  1,
 		"/api/cloudsearch/get/web":           1,
 		"/api/song/enhance/privilege":        1,
+		"/api/osx/version":                   1,
 	}
 )
 
@@ -180,7 +181,9 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			if ok {
 				code = codeN.String()
 			}
-			if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
+			if strings.EqualFold(netease.Path, "/api/osx/version") {
+				modified = disableUpdate(netease)
+			} else if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
 				modified = tryCollect(netease, request)
 			} else if !netease.Web && (code == "401" || code == "512") && strings.EqualFold(netease.Path, "/api/song/like") {
 				modified = tryLike(netease, request)
@@ -217,6 +220,25 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 		//log.Println("Not Process")
 	}
 }
+
+func disableUpdate(netease *Netease) bool {
+	modified := false
+	jsonBody := netease.JsonBody
+	if value, ok := jsonBody["updateFiles"]; ok {
+		switch value.(type) {
+		case common.SliceType:
+			if len(value.(common.SliceType)) > 0 {
+				modified = true
+				jsonBody["updateFiles"] = make(common.SliceType, 0)
+			}
+		default:
+		}
+	}
+	// modifiedJson, _ := json.Marshal(jsonBody)
+	// log.Println(string(modifiedJson))
+	return modified
+}
+
 func tryCollect(netease *Netease, request *http.Request) bool {
 	modified := false
 	//log.Println(utils.ToJson(netease))
