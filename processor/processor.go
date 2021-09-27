@@ -84,7 +84,7 @@ func RequestBefore(request *http.Request) *Netease {
 	netease := &Netease{Path: request.URL.Path}
 
 	if request.Method == http.MethodPost && (strings.Contains(netease.Path, "/eapi/") || strings.Contains(netease.Path, "/api/linux/forward")) {
-		if strings.Index(netease.Path, "/eapi/ad/") == 0 || strings.Index(netease.Path, "/api/ad/") == 0 {
+		if *config.BlockAds && (strings.Index(netease.Path, "/eapi/ad/") == 0 || strings.Index(netease.Path, "/api/ad/") == 0) {
 			return nil
 		}
 		request.Header.Del("x-napm-retry")
@@ -184,7 +184,7 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			if ok {
 				code = codeN.String()
 			}
-			if strings.EqualFold(netease.Path, "/api/osx/version") {
+			if *config.BlockUpdate && strings.EqualFold(netease.Path, "/api/osx/version") {
 				modified = disableUpdate(netease)
 			} else if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
 				modified = tryCollect(netease, request)
