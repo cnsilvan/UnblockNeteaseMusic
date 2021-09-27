@@ -183,6 +183,10 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 				}
 				log.Printf("Transport:%s(%s)(%s)\n", urlString, request.Host, request.Method)
 				netease := processor.RequestBefore(request)
+				if netease == nil {
+					log.Println("Request Blocked:", urlString)
+					return
+				}
 				//log.Printf("{path:%s,web:%v,encrypted:%v}\n", netease.Path, netease.Web, netease.Encrypted)
 				response, err := processor.Request(request, urlString)
 				if err != nil {
@@ -206,10 +210,10 @@ func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request)
 			if request.Method == http.MethodConnect {
 				proxyConnect(resp, request)
 			} else {
-				 if proxyDomain, ok := common.HostDomain[hostStr]; ok {
-					 if *config.Mode != 1 {
-						 proxyDomain = hostStr
-					 }
+				if proxyDomain, ok := common.HostDomain[hostStr]; ok {
+					if *config.Mode != 1 {
+						proxyDomain = hostStr
+					}
 					if len(request.URL.Port()) > 0 {
 						proxyDomain = proxyDomain + ":" + request.URL.Port()
 					}

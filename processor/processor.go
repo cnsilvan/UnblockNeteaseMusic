@@ -84,6 +84,9 @@ func RequestBefore(request *http.Request) *Netease {
 	netease := &Netease{Path: request.URL.Path}
 
 	if request.Method == http.MethodPost && (strings.Contains(netease.Path, "/eapi/") || strings.Contains(netease.Path, "/api/linux/forward")) {
+		if strings.Index(netease.Path, "/eapi/ad/") == 0 || strings.Index(netease.Path, "/api/ad/") == 0 {
+			return nil
+		}
 		request.Header.Del("x-napm-retry")
 		request.Header.Set("X-Real-IP", "118.66.66.66")
 		requestBody, _ := ioutil.ReadAll(request.Body)
@@ -117,7 +120,7 @@ func RequestBefore(request *http.Request) *Netease {
 			data := strings.Split(decryptString, "-36cd479b6b5-")
 			netease.Path = data[0]
 			netease.Params = utils.ParseJson(bytes.NewBufferString(data[1]).Bytes())
-			}
+		}
 		netease.Path = strings.ReplaceAll(netease.Path, "https://music.163.com", "")
 		netease.Path = strings.ReplaceAll(netease.Path, "http://music.163.com", "")
 		netease.Path = utils.ReplaceAll(netease.Path, `\/\d*$`, "")
