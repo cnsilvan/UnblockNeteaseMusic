@@ -47,6 +47,7 @@ const (
 	KuWoTag  PlatformIdTag = "90000"
 	MiGuTag  PlatformIdTag = "90001"
 	KuGouTag PlatformIdTag = "90002"
+	QQTag    PlatformIdTag = "90003"
 )
 
 type SearchOrderBy int32
