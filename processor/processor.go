@@ -6,15 +6,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"io"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"net/url"
-	"regexp"
-	"strconv"
-	"strings"
-
 	"github.com/cnsilvan/UnblockNeteaseMusic/cache"
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/config"
@@ -23,44 +14,58 @@ import (
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"golang.org/x/text/width"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 var (
 	eApiKey     = "e82ckenh8dichen8"
 	linuxApiKey = "rFgB&h#%2?^eDg:Q"
-	///api/song/enhance/player/url
-	///eapi/mlivestream/entrance/playlist/get
+	// /api/song/enhance/player/url
+	// /eapi/mlivestream/entrance/playlist/get
 	Path = map[string]int{
-		"/api/v3/playlist/detail":            1,
-		"/api/v3/song/detail":                1,
-		"/api/v6/playlist/detail":            1,
-		"/api/album/play":                    1,
-		"/api/artist/privilege":              1,
-		"/api/album/privilege":               1,
-		"/api/v1/artist":                     1,
-		"/api/v1/artist/songs":               1,
-		"/api/artist/top/song":               1,
-		"/api/v1/album":                      1,
-		"/api/album/v3/detail":               1,
-		"/api/playlist/privilege":            1,
-		"/api/song/enhance/player/url":       1,
-		"/api/song/enhance/player/url/v1":    1,
-		"/api/song/enhance/download/url":     1,
-		"/batch":                             2, //Search
-		"/api/batch":                         1,
-		"/api/v1/search/get":                 2, //IOS
-		"/api/v1/search/song/get":            2,
-		"/api/search/complex/get":            1,
-		"/api/search/complex/get/v2":         2, //Android
-		"/api/cloudsearch/pc":                3, //PC Value
-		"/api/v1/playlist/manipulate/tracks": 1,
-		"/api/song/like":                     1,
-		"/api/v1/play/record":                1,
-		"/api/playlist/v4/detail":            1,
-		"/api/v1/radio/get":                  1,
-		"/api/v1/discovery/recommend/songs":  1,
-		"/api/cloudsearch/get/web":           1,
-		"/api/song/enhance/privilege":        1,
+		"/api/v3/playlist/detail":                  1,
+		"/api/v3/song/detail":                      1,
+		"/api/v6/playlist/detail":                  1,
+		"/api/album/play":                          1,
+		"/api/artist/privilege":                    1,
+		"/api/album/privilege":                     1,
+		"/api/v1/artist":                           1,
+		"/api/v1/artist/songs":                     1,
+		"/api/artist/top/song":                     1,
+		"/api/v1/album":                            1,
+		"/api/album/v3/detail":                     1,
+		"/api/playlist/privilege":                  1,
+		"/api/song/enhance/player/url":             1,
+		"/api/song/enhance/player/url/v1":          1,
+		"/api/song/enhance/download/url":           1,
+		"/batch":                                   2, // Search
+		"/api/batch":                               1,
+		"/api/v1/search/get":                       2, // IOS
+		"/api/v1/search/song/get":                  2,
+		"/api/search/complex/get":                  1,
+		"/api/search/complex/get/v2":               2, // Android
+		"/api/cloudsearch/pc":                      3, // PC Value
+		"/api/v1/playlist/manipulate/tracks":       1,
+		"/api/song/like":                           1,
+		"/api/v1/play/record":                      1,
+		"/api/playlist/v4/detail":                  1,
+		"/api/v1/radio/get":                        1,
+		"/api/v1/discovery/recommend/songs":        1,
+		"/api/cloudsearch/get/web":                 1,
+		"/api/song/enhance/privilege":              1,
+		"/api/osx/version":                         1,
+		"/api/usertool/sound/mobile/promote":       1,
+		"/api/usertool/sound/mobile/theme":         1,
+		"/api/usertool/sound/mobile/animationList": 1,
+		"/api/usertool/sound/mobile/all":           1,
+		"/api/usertool/sound/mobile/detail":        1,
 	}
 )
 
@@ -83,6 +88,9 @@ func RequestBefore(request *http.Request) *Netease {
 	netease := &Netease{Path: request.URL.Path}
 
 	if request.Method == http.MethodPost && (strings.Contains(netease.Path, "/eapi/") || strings.Contains(netease.Path, "/api/linux/forward")) {
+		if *config.BlockAds && (strings.Contains(netease.Path, "api/ad/") || strings.Contains(netease.Path, "api/clientlog/upload") || strings.Contains(netease.Path, "api/feedback/weblog")) {
+			return nil
+		}
 		request.Header.Del("x-napm-retry")
 		request.Header.Set("X-Real-IP", "118.66.66.66")
 		requestBody, _ := ioutil.ReadAll(request.Body)
@@ -116,7 +124,7 @@ func RequestBefore(request *http.Request) *Netease {
 			data := strings.Split(decryptString, "-36cd479b6b5-")
 			netease.Path = data[0]
 			netease.Params = utils.ParseJson(bytes.NewBufferString(data[1]).Bytes())
-			}
+		}
 		netease.Path = strings.ReplaceAll(netease.Path, "https://music.163.com", "")
 		netease.Path = strings.ReplaceAll(netease.Path, "http://music.163.com", "")
 		netease.Path = utils.ReplaceAll(netease.Path, `\/\d*$`, "")
@@ -180,7 +188,21 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			if ok {
 				code = codeN.String()
 			}
-			if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
+			if strings.EqualFold(netease.Path, "/api/osx/version") {
+				modified = disableUpdate(netease)
+			} else if strings.Contains(netease.Path, "/usertool/sound/") {
+				modified = unblockSoundEffects(netease.JsonBody)
+			} else if strings.Contains(netease.Path, "/batch") {
+				modified = localVIP(netease)
+				for key, resp := range netease.JsonBody {
+					if strings.Contains(key, "/usertool/sound/") {
+						modified = unblockSoundEffects(resp.(map[string]interface{}))
+					} else if *config.BlockAds && strings.Contains(netease.Path, "api/ad/") {
+						resp = &common.MapType{}
+						modified = true
+					}
+				}
+			} else if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
 				modified = tryCollect(netease, request)
 			} else if !netease.Web && (code == "401" || code == "512") && strings.EqualFold(netease.Path, "/api/song/like") {
 				modified = tryLike(netease, request)
@@ -194,32 +216,125 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				response.Header.Del("transfer-encoding")
 				response.Header.Del("content-encoding")
 				response.Header.Del("content-length")
-				//netease.JsonBody = netease.JsonBody
-				//log.Println("NeedRepackage")
+				// netease.JsonBody = netease.JsonBody
+				// log.Println("NeedRepackage")
 				modifiedJson, _ := json.Marshal(netease.JsonBody)
-				//log.Println(netease)
-				//log.Println(string(modifiedJson))
+				// log.Println(netease)
+				// log.Println(string(modifiedJson))
 				if netease.Encrypted {
 					modifiedJson = crypto.AesEncryptECB(modifiedJson, []byte(aeskey))
 				}
 				response.Body = ioutil.NopCloser(bytes.NewBuffer(modifiedJson))
 			} else {
-				//log.Println("NotNeedRepackage")
+				// log.Println("NotNeedRepackage")
 				responseHold := ioutil.NopCloser(bytes.NewBuffer(tmpBody))
 				response.Body = responseHold
 			}
-			//log.Println(utils.ToJson(netease.JsonBody))
+
+			// log.Println("netease.Path: " + netease.Path)
+			// log.Println("netease.JsonBody: " + utils.ToJson(netease.JsonBody) +
+			// 	"\nrequestRequestURI: " + request.RequestURI +
+			// 	"\nrequestHeader: " + utils.ToJson(request.Header) +
+			// 	"\nrequestMethod: " + request.Method +
+			// 	"\nrequestUserAgent: " + request.UserAgent())
 		} else {
 			responseHold := ioutil.NopCloser(bytes.NewBuffer(tmpBody))
 			response.Body = responseHold
 		}
 	} else {
-		//log.Println("Not Process")
+		// log.Println("Not Process: " + netease.Path)
 	}
 }
+
+func disableUpdate(netease *Netease) bool {
+	if !*config.BlockUpdate {
+		return false
+	}
+	modified := false
+	jsonBody := netease.JsonBody
+	if value, ok := jsonBody["updateFiles"]; ok {
+		switch value.(type) {
+		case common.SliceType:
+			if len(value.(common.SliceType)) > 0 {
+				modified = true
+				jsonBody["updateFiles"] = make(common.SliceType, 0)
+			}
+		default:
+		}
+	}
+	// modifiedJson, _ := json.Marshal(jsonBody)
+	// log.Println(string(modifiedJson))
+	return modified
+}
+func localVIP(netease *Netease) bool {
+	if !*config.EnableLocalVip {
+		return false
+	}
+	modified := false
+	if utils.Exist("/api/music-vip-membership/client/vip/info", netease.JsonBody) {
+		log.Println("localVIP has been triggered.")
+		modified = true
+		info := netease.JsonBody["/api/music-vip-membership/client/vip/info"]
+		expireTime, _ := info.(common.MapType)["data"].(common.MapType)["now"].(json.Number).Int64()
+		expireTime += 3162240000000
+		info.(common.MapType)["data"].(common.MapType)["redVipLevel"] = 7
+		info.(common.MapType)["data"].(common.MapType)["redVipAnnualCount"] = 1
+		info.(common.MapType)["data"].(common.MapType)["musicPackage"] = &common.MapType{"expireTime": expireTime, "vipCode": 230}
+		info.(common.MapType)["data"].(common.MapType)["associator"] = &common.MapType{"expireTime": expireTime}
+	}
+	return modified
+}
+func unblockSoundEffects(jsonBody map[string]interface{}) bool {
+	if !*config.UnlockSoundEffects {
+		return false
+	}
+	// JsonBody,_ := json.Marshal(jsonBody)
+	modified := false
+	if value, ok := jsonBody["data"]; ok {
+		switch value.(type) {
+		case common.SliceType:
+			if len(value.(common.SliceType)) > 0 {
+				modified = true
+				for _, data := range value.(common.SliceType) {
+					if datum, ok := data.(common.MapType); ok {
+						datum["type"] = 1
+						if utils.Exist("type", datum["sound"].(common.MapType)) {
+							datum["sound"].(common.MapType)["type"] = 1
+						}
+						if utils.Exist("type", datum["animation"].(common.MapType)) {
+							datum["animation"].(common.MapType)["type"] = 1
+						}
+					}
+				}
+			}
+		case common.MapType:
+			if utils.Exist("type", value.(common.MapType)) {
+				modified = true
+				value.(common.MapType)["type"] = 1
+				if utils.Exist("type", value.(common.MapType)["sound"].(common.MapType)) {
+					value.(common.MapType)["sound"].(common.MapType)["type"] = 1
+				}
+				if utils.Exist("type", value.(common.MapType)["animation"].(common.MapType)) {
+					value.(common.MapType)["animation"].(common.MapType)["type"] = 1
+				}
+			}
+		default:
+		}
+	}
+	// modifiedJson, _ := json.Marshal(jsonBody)
+	// log.Println("netease.JsonBody: " + string(JsonBody))
+	// log.Println("netease.modifiedJson: " + string(modifiedJson))
+	if modified {
+		log.Println("unblockSoundEffects has been triggered.")
+	}
+
+	return modified
+
+}
+
 func tryCollect(netease *Netease, request *http.Request) bool {
 	modified := false
-	//log.Println(utils.ToJson(netease))
+	// log.Println(utils.ToJson(netease))
 	if utils.Exist("trackIds", netease.Params) {
 		trackId := ""
 		switch netease.Params["trackIds"].(type) {
@@ -262,7 +377,7 @@ func tryCollect(netease *Netease, request *http.Request) bool {
 	return modified
 }
 func tryLike(netease *Netease, request *http.Request) bool {
-	//log.Println("try like")
+	// log.Println("try like")
 	modified := false
 	if utils.Exist("trackId", netease.Params) {
 		trackId := netease.Params["trackId"].(string)
@@ -346,8 +461,8 @@ func tryMatch(netease *Netease) bool {
 		default:
 		}
 	}
-	//modifiedJson, _ := json.Marshal(jsonBody)
-	//log.Println(string(modifiedJson))
+	// modifiedJson, _ := json.Marshal(jsonBody)
+	// log.Println(string(modifiedJson))
 	return modified
 }
 func searchGreySongs(data common.SliceType, netease *Netease) bool {
@@ -398,9 +513,9 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 					song.Br = 128000
 				}
 			}
-			data["encodeType"] = data["type"] //web
-			data["level"] = "standard"        //web
-			data["fee"] = 8                   //web
+			data["encodeType"] = data["type"] // web
+			data["level"] = "standard"        // web
+			data["fee"] = 8                   // web
 			uri, err := url.Parse(song.Url)
 			if err != nil {
 				log.Println("url.Parse error:", song.Url)
@@ -429,7 +544,7 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 			data["size"] = song.Size
 			data["freeTrialInfo"] = nil
 			data["code"] = 200
-			if strings.Contains(netease.Path, "download") { //calculate the file md5
+			if strings.Contains(netease.Path, "download") { // calculate the file md5
 				if !haveSongMd5 {
 					data["md5"] = calculateSongMd5(searchMusic, song.Url)
 				}
@@ -440,7 +555,7 @@ func searchGreySong(data common.MapType, netease *Netease) bool {
 	} else {
 
 	}
-	//log.Println(utils.ToJson(data))
+	// log.Println(utils.ToJson(data))
 	return modified
 }
 func calculateSongMd5(music common.SearchMusic, songUrl string) string {
@@ -464,7 +579,7 @@ func calculateSongMd5(music common.SearchMusic, songUrl string) string {
 	}
 	songMd5 = hex.EncodeToString(h.Sum(nil))
 	provider.UpdateCacheMd5(music, songMd5)
-	//log.Println("calculateSongMd5 songId:", songId, ",songUrl:", songUrl, ",md5:", songMd5)
+	// log.Println("calculateSongMd5 songId:", songId, ",songUrl:", songUrl, ",md5:", songMd5)
 	return songMd5
 }
 func processSliceJson(jsonSlice common.SliceType) bool {
@@ -478,8 +593,8 @@ func processSliceJson(jsonSlice common.SliceType) bool {
 			needModify = processSliceJson(value.(common.SliceType)) || needModify
 
 		default:
-			//log.Printf("index(%T):%v\n", index, index)
-			//log.Printf("value(%T):%v\n", value, value)
+			// log.Printf("index(%T):%v\n", index, index)
+			// log.Printf("value(%T):%v\n", value, value)
 		}
 	}
 	return needModify
@@ -488,7 +603,7 @@ func processMapJson(jsonMap common.MapType) bool {
 	needModify := false
 	if utils.Exists([]string{"st", "subp", "pl", "dl"}, jsonMap) {
 		if v, _ := jsonMap["st"]; v.(json.Number).String() != "0" {
-			//open gray song
+			// open gray song
 			jsonMap["st"] = 0
 			needModify = true
 		}
@@ -512,7 +627,7 @@ func processMapJson(jsonMap common.MapType) bool {
 		case common.SliceType:
 			needModify = processSliceJson(value.(common.SliceType)) || needModify
 		default:
-			//if key == "fee" {
+			// if key == "fee" {
 			//	fee := "0"
 			//	switch value.(type) {
 			//	case int:
@@ -526,14 +641,14 @@ func processMapJson(jsonMap common.MapType) bool {
 			//		jsonMap[key] = 0
 			//		needModify = true
 			//	}
-			//}
+			// }
 		}
 	}
 	return needModify
 }
 
 func unifiedMusicQuality(netease *Netease) {
-	//log.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.Params)))
+	// log.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.Params)))
 	netease.MusicQuality = common.Lossless
 	if !*config.ForceBestQuality {
 		if levelParam, ok := netease.Params["level"]; ok {
@@ -563,7 +678,7 @@ func unifiedMusicQuality(netease *Netease) {
 				}
 			}
 		}
-		//log.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.MusicQuality)))
+		// log.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.MusicQuality)))
 	}
 }
 func generateEndpoint(netease *Netease) string {
@@ -591,24 +706,24 @@ func generateEndpoint(netease *Netease) string {
 		}
 	}
 	netease.EndPoint = protocol + endPoint
-	//log.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.EndPoint)))
+	// log.Println(fmt.Sprintf("%+v\n", utils.ToJson(netease.EndPoint)))
 	return netease.EndPoint
 }
 func searchOtherPlatform(netease *Netease) *Netease {
-	//log.Println(utils.ToJson(netease))
+	// log.Println(utils.ToJson(netease))
 	if *config.SearchLimit > 0 && Path[netease.Path] == 2 {
 		var paramsMap map[string]interface{}
-		if utils.Exists([]string{"offset", "s"}, netease.Params) { //单曲
+		if utils.Exists([]string{"offset", "s"}, netease.Params) { // 单曲
 			netease.SearchPath = netease.Path
 			paramsMap = netease.Params
-		} else if utils.Exists([]string{"keyword", "scene"}, netease.Params) { //综合
+		} else if utils.Exists([]string{"keyword", "scene"}, netease.Params) { // 综合
 			netease.SearchPath = netease.Path
 			paramsMap = netease.Params
-		} else { //pc
+		} else { // pc
 			for k, v := range netease.Params {
-				//pc
+				// pc
 				if t, ok := Path[k]; ok {
-					if t == 3 { //search
+					if t == 3 { // search
 						if searchValue, ok := v.(string); ok {
 							paramsMap = utils.ParseJson([]byte(searchValue))
 							netease.SearchPath = k
@@ -621,13 +736,13 @@ func searchOtherPlatform(netease *Netease) *Netease {
 		if paramsMap != nil {
 			var offset int64
 			if offsetJson, ok := paramsMap["offset"].(json.Number); ok {
-				//just offset=0
+				// just offset=0
 				if i, err := offsetJson.Int64(); err == nil {
 					offset = i
 				}
 
 			} else if offsetS, ok := paramsMap["offset"].(string); ok {
-				//just offset=0
+				// just offset=0
 				if i, err := strconv.ParseInt(offsetS, 10, 64); err == nil {
 					offset = i
 				}
@@ -656,7 +771,7 @@ func searchOtherPlatform(netease *Netease) *Netease {
 }
 func trySearch(netease *Netease, ch chan []*common.Song) {
 	ch <- provider.SearchSongFromAllSource(common.SearchSong{Keyword: netease.SearchKey, Limit: *config.SearchLimit, OrderBy: common.PlatformDefault})
-	//log.Println(utils.ToJson(songs))
+	// log.Println(utils.ToJson(songs))
 }
 func tryAddOtherPlatformResult(netease *Netease) bool {
 	modified := false
@@ -669,7 +784,7 @@ func tryAddOtherPlatformResult(netease *Netease) bool {
 			close(netease.SearchTaskChan)
 		}
 	}
-	if len(netease.SearchKey) > 0 && netease.JsonBody != nil && len(netease.SearchSongs) > 0 { //搜索页面
+	if len(netease.SearchKey) > 0 && netease.JsonBody != nil && len(netease.SearchSongs) > 0 { // 搜索页面
 		var orginalMap common.MapType
 		var orginalSongsKey string
 		var neteaseSongs common.SliceType
@@ -682,7 +797,7 @@ func tryAddOtherPlatformResult(netease *Netease) bool {
 				}
 
 			}
-		} else if jBody, ok := netease.JsonBody["data"].(common.MapType); ok { //android 综合
+		} else if jBody, ok := netease.JsonBody["data"].(common.MapType); ok { // android 综合
 			if result, ok := jBody["complete"].(common.MapType); ok {
 				if s, ok := result["song"].(common.MapType); ok {
 					if neteaseSongs, ok = s["songs"].(common.SliceType); ok {
@@ -694,10 +809,10 @@ func tryAddOtherPlatformResult(netease *Netease) bool {
 
 			}
 		} else if jBody, ok := netease.JsonBody["result"].(common.MapType); ok {
-			if neteaseSongs, ok = jBody["songs"].(common.SliceType); ok { //android&ios 单曲
+			if neteaseSongs, ok = jBody["songs"].(common.SliceType); ok { // android&ios 单曲
 				orginalMap = jBody
 				orginalSongsKey = "songs"
-			} else if s, ok := jBody["song"].(common.MapType); ok { //ios 综合
+			} else if s, ok := jBody["song"].(common.MapType); ok { // ios 综合
 				if neteaseSongs, ok = s["songs"].(common.SliceType); ok {
 					orginalMap = s
 					orginalSongsKey = "songs"
@@ -732,7 +847,7 @@ func tryAddOtherPlatformResult(netease *Netease) bool {
 						idTag = common.KuWoTag
 
 					}
-					if _, ok := copySong["name"]; ok { //make sure ok
+					if _, ok := copySong["name"]; ok { // make sure ok
 						copySong["alia"] = []string{source}
 						if ar, ok := copySong["ar"]; ok {
 							artMap := make(common.MapType)

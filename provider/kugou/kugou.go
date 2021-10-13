@@ -97,7 +97,7 @@ func (m *KuGou) GetSongUrl(searchSong common.SearchMusic, song *common.Song) *co
 		hashKey = "hash"
 	}
 	fileHash, ok := song.PlatformUniqueKey[hashKey].(string)
-	if !ok {
+	if !ok || fileHash == "" {
 		fileHash, ok = song.PlatformUniqueKey["hash"].(string)
 	}
 	albumId, ok := song.PlatformUniqueKey["album_id"].(string)

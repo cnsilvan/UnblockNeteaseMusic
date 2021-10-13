@@ -15,17 +15,22 @@ import (
 )
 
 var (
-	Port             = flag.Int("p", 80, "specify server port,such as : \"80\"")
-	TLSPort          = flag.Int("sp", 443, "specify server tls port,such as : \"443\"")
-	Source           = flag.String("o", "kuwo", "specify server source,such as : \"kuwo\"")
-	CertFile         = flag.String("c", "./server.crt", "specify server cert,such as : \"server.crt\"")
-	KeyFile          = flag.String("k", "./server.key", "specify server cert key ,such as : \"server.key\"")
-	LogFile          = flag.String("l", "", "specify log file ,such as : \"/var/log/unblockNeteaseMusic.log\"")
-	Mode             = flag.Int("m", 1, "specify running mode（1:hosts） ,such as : \"1\"")
-	V                = flag.Bool("v", false, "display version info")
-	EndPoint         = flag.Bool("e", false, "enable replace song url")
-	ForceBestQuality = flag.Bool("b", false, "force the best music quality")
-	SearchLimit      = flag.Int("sl", 0, "specify the number of songs searched on other platforms(the range is 0 to 3) ,such as : \"1\"")
+	Port               = flag.Int("p", 80, "specify server port,such as : \"80\"")
+	TLSPort            = flag.Int("sp", 443, "specify server tls port,such as : \"443\"")
+	Source             = flag.String("o", "kuwo", "specify server source,such as : \"kuwo\"")
+	CertFile           = flag.String("c", "./server.crt", "specify server cert,such as : \"server.crt\"")
+	KeyFile            = flag.String("k", "./server.key", "specify server cert key ,such as : \"server.key\"")
+	LogFile            = flag.String("l", "", "specify log file ,such as : \"/var/log/unblockNeteaseMusic.log\"")
+	Mode               = flag.Int("m", 1, "specify running mode（1:hosts） ,such as : \"1\"")
+	V                  = flag.Bool("v", false, "display version info")
+	EndPoint           = flag.Bool("e", false, "enable replace song url")
+	ForceBestQuality   = flag.Bool("b", false, "force the best music quality")
+	SearchLimit        = flag.Int("sl", 0, "specify the number of songs searched on other platforms(the range is 0 to 3) ,such as : \"1\"")
+	BlockUpdate        = flag.Bool("bu", false, "block version update message")
+	BlockAds           = flag.Bool("ba", false, "block advertising requests")
+	EnableLocalVip     = flag.Bool("lv", false, "enable local vip")
+	UnlockSoundEffects = flag.Bool("sef", false, "unlock SoundEffects")
+	QQCookieFile       = flag.String("qc", "./qq.cookie", "specify cookies file ,such as : \"qq.cookie\"")
 )
 
 func ValidParams() bool {
@@ -60,7 +65,7 @@ func ValidParams() bool {
 		log.Println(err)
 		currentPath = ""
 	}
-	//log.Println(currentPath)
+	// log.Println(currentPath)
 	certFile, _ := filepath.Abs(*CertFile)
 	keyFile, _ := filepath.Abs(*KeyFile)
 	_, err = os.Open(certFile)
@@ -78,8 +83,8 @@ func ValidParams() bool {
 		logFilePath, _ := filepath.Abs(*LogFile)
 		logFile, logErr := os.OpenFile(logFilePath, os.O_CREATE|os.O_RDWR|os.O_SYNC|os.O_APPEND, 0666)
 		if logErr != nil {
-			//log.Println("Fail to find unblockNeteaseMusic.log start Failed")
-			//panic(logErr)
+			// log.Println("Fail to find unblockNeteaseMusic.log start Failed")
+			// panic(logErr)
 			logFilePath, _ = filepath.Abs(currentPath + *LogFile)
 		} else {
 			logFile.Close()
@@ -96,7 +101,7 @@ func ValidParams() bool {
 		if err != nil {
 			panic(err)
 		}
-		if (fileInfo.Size() >> 20) > 2 { //2M
+		if (fileInfo.Size() >> 20) > 2 { // 2M
 			logFile.Seek(0, io.SeekStart)
 			logFile.Truncate(0)
 		}

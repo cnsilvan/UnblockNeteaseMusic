@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
@@ -9,9 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cnsilvan/UnblockNeteaseMusic/cookiestxt"
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -301,4 +305,28 @@ func ParseSingerKeyWord(data string) []string {
 	}
 	sort.Sort(ByLenSort(keys))
 	return keys
+}
+
+func round(num float64) int {
+	return int(num + math.Copysign(0.5, num))
+}
+
+func ToFixed(num float64, precision int) float64 {
+	output := math.Pow(10, float64(precision))
+	return float64(round(num*output)) / output
+}
+
+func ParseCookies(file string) []*http.Cookie {
+	fl, err := os.Open(file)
+	if err != nil {
+		fmt.Println(file, err)
+		return nil
+	}
+	defer fl.Close()
+	r := bufio.NewReader(fl)
+	cl, err := cookiestxt.Parse(r)
+	if err != nil {
+		return nil
+	}
+	return cl
 }

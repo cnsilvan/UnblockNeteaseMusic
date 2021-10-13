@@ -77,7 +77,7 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 		return resp, nil
 	}
 	if !clientRequest.ForbiddenEncodeQuery {
-		request.URL.RawQuery = request.URL.Query().Encode()
+		request.URL.RawQuery = strings.Replace(request.URL.Query().Encode(), "+", "%20", -1)
 	}
 	if len(host) > 0 {
 		request.Host = host
@@ -102,7 +102,7 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 	accept := "application/json, text/plain, */*"
 	acceptEncoding := "gzip, deflate"
 	acceptLanguage := "zh-CN,zh;q=0.9"
-	userAgent := "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+	userAgent := "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36"
 
 	if header != nil {
 		accept = header.Get("accept")
@@ -119,7 +119,7 @@ func Request(clientRequest *ClientRequest) (*http.Response, error) {
 		}
 		userAgent = header.Get("user-agent")
 		if len(userAgent) == 0 {
-			userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+			userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.61 Safari/537.36"
 		}
 		Range := header.Get("range")
 		if len(Range) > 0 {

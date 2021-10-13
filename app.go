@@ -40,6 +40,11 @@ func main() {
 		log.Println("endPoint=", *config.EndPoint)
 		log.Println("forceBestQuality=", *config.ForceBestQuality)
 		log.Println("searchLimit=", *config.SearchLimit)
+		log.Println("blockUpdate=", *config.BlockUpdate)
+		log.Println("BlockAds=", *config.BlockAds)
+		log.Println("EnableLocalVip=", *config.EnableLocalVip)
+		log.Println("UnlockSoundEffects=", *config.UnlockSoundEffects)
+		log.Println("QQCookieFile=", *config.QQCookieFile)
 		if host.InitHosts() == nil {
 			//go func() {
 			//	//	// terminal: $ go tool pprof -http=:8081 http://localhost:6060/debug/pprof/heap

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -16,6 +17,10 @@ import (
 )
 
 type KuWo struct{}
+
+var blockSongUrl = map[string]json.Number{
+	"2914632520.mp3": "7",
+}
 
 func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 	song = base.PreSearchSong(song)
@@ -47,11 +52,11 @@ func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 				kuWoSong, ok := matched.(common.MapType)
 				if ok {
 					rid, ok := kuWoSong["rid"].(json.Number)
-					rids:=""
+					rids := ""
 					if !ok {
 						rids, ok = kuWoSong["rid"].(string)
-					}else{
-						rids=rid.String()
+					} else {
+						rids = rid.String()
 					}
 					if ok {
 						songResult := &common.Song{}
@@ -128,6 +133,10 @@ func (m *KuWo) GetSongUrl(searchSong common.SearchMusic, song *common.Song) *com
 					address := string(body)
 					params := reg.FindStringSubmatch(address)
 					if len(params) > 0 {
+						if duration, ok := blockSongUrl[filepath.Base(params[0])]; ok && song.PlatformUniqueKey["duration"].(json.Number) == duration {
+							log.Println(song.PlatformUniqueKey["UnKeyWord"].(string) + "，该歌曲酷我版权保护")
+							return song
+						}
 						song.Url = params[0]
 						return song
 					}

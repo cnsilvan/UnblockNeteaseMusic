@@ -10,8 +10,7 @@ import (
 	kugou "github.com/cnsilvan/UnblockNeteaseMusic/provider/kugou"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider/kuwo"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider/migu"
-
-	//"github.com/cnsilvan/UnblockNeteaseMusic/provider/qq"
+	"github.com/cnsilvan/UnblockNeteaseMusic/provider/qq"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -44,6 +43,8 @@ func NewProvider(kind string) Provider {
 		return &kugou.KuGou{}
 	case "migu":
 		return &migu.Migu{}
+	case "qq":
+		return &qq.QQ{}
 	default:
 		return &kuwo.KuWo{}
 	}
@@ -86,6 +87,8 @@ func Find(music common.SearchMusic) common.Song {
 				re = calculateSongInfo(GetProvider("kuwo").GetSongUrl(music, song))
 			} else if strings.Index(music.Id, string(common.MiGuTag)) == 0 {
 				re = calculateSongInfo(GetProvider("migu").GetSongUrl(music, song))
+			} else if strings.Index(music.Id, string(common.QQTag)) == 0 {
+				re = calculateSongInfo(GetProvider("qq").GetSongUrl(music, song))
 			} else {
 
 			}
