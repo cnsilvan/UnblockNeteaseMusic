@@ -50,8 +50,8 @@ func CalScore(song common.SearchSong, songName string, singerName string, index 
 			!strings.Contains(strings.ToUpper(song.Keyword), "DJ") {
 			return 0, false
 		}
-		if strings.Contains(strings.ToUpper(songName), "cover") &&
-			!strings.Contains(strings.ToUpper(song.Keyword), "cover") {
+		if strings.Contains(strings.ToUpper(songName), "COVER") &&
+			!strings.Contains(strings.ToUpper(song.Keyword), "COVER") {
 			return 0, false
 		}
 		var songNameSores float32 = 0.0
