@@ -60,8 +60,8 @@ func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 					}
 					if ok {
 						songResult := &common.Song{}
-						singerName, _ := kuWoSong["artist"].(string)
-						songName, _ := kuWoSong["name"].(string)
+						singerName := strings.ReplaceAll(kuWoSong["artist"].(string), "&nbsp;", " ")
+						songName := strings.ReplaceAll(kuWoSong["name"].(string), "&nbsp;", " ")
 						//musicSlice := strings.Split(musicrid, "_")
 						//musicId := musicSlice[len(musicSlice)-1]
 						songResult.PlatformUniqueKey = kuWoSong
