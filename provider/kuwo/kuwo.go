@@ -3,6 +3,7 @@ package kuwo
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider/base"
 	"log"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/network"
@@ -18,78 +20,97 @@ import (
 
 type KuWo struct{}
 
+const (
+	SearchSongURL = "http://www.kuwo.cn/api/www/search/searchMusicBykeyWord?key=%s&pn=1&rn=30"
+)
+
 var blockSongUrl = map[string]json.Number{
 	"2914632520.mp3": "7",
 }
 
+var lock sync.Mutex
+
 func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 	song = base.PreSearchSong(song)
-	token := getToken(song.Keyword)
-	header := make(http.Header, 4)
-	header["referer"] = append(header["referer"], "http://www.kuwo.cn/search/list?key="+url.QueryEscape(song.Keyword))
-	header["csrf"] = append(header["csrf"], token)
-	header["cookie"] = append(header["cookie"], "kw_token="+token)
-	result, err := base.Fetch(
-		"http://www.kuwo.cn/api/www/search/searchMusicBykeyWord?key="+song.Keyword+"&pn=1&rn=30",
-		nil, header, true)
-	if err != nil {
-		log.Println(err)
-		return songs
-	}
-	data, ok := result["data"].(common.MapType)
-	if ok {
-		list, ok := data["list"].([]interface{})
-		if ok && len(list) > 0 {
-			listLength := len(list)
-			maxIndex := listLength/2 + 1
-			if maxIndex > 10 {
-				maxIndex = 10
+	keyWordList := utils.Combination(strings.Split(song.ArtistsName, " "))
+	wg := sync.WaitGroup{}
+	for _, v := range keyWordList {
+		wg.Add(1)
+		// use goroutine to deal multiple request
+		go func(word string) {
+			defer wg.Done()
+			keyWord := song.Name
+			if len(word) != 0 {
+				keyWord = fmt.Sprintf("%s %s", song.Name, word)
 			}
-			for index, matched := range list {
-				if index >= 1 { //kuwo list order by score default
-					break
-				}
-				kuWoSong, ok := matched.(common.MapType)
-				if ok {
-					rid, ok := kuWoSong["rid"].(json.Number)
-					rids := ""
-					if !ok {
-						rids, ok = kuWoSong["rid"].(string)
-					} else {
-						rids = rid.String()
+			token := getToken(keyWord)
+			header := make(http.Header, 4)
+			header["referer"] = append(header["referer"], "http://www.kuwo.cn/search/list?key="+url.QueryEscape(keyWord))
+			header["csrf"] = append(header["csrf"], token)
+			header["cookie"] = append(header["cookie"], "kw_token="+token)
+			searchUrl := fmt.Sprintf(SearchSongURL, keyWord)
+			result, err := base.Fetch(searchUrl, nil, header, true)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			data, ok := result["data"].(common.MapType)
+			if ok {
+				list, ok := data["list"].([]interface{})
+				if ok && len(list) > 0 {
+					listLength := len(list)
+					maxIndex := listLength/2 + 1
+					if maxIndex > 5 {
+						maxIndex = 5
 					}
-					if ok {
-						songResult := &common.Song{}
-						singerName, _ := kuWoSong["artist"].(string)
-						songName, _ := kuWoSong["name"].(string)
-						//musicSlice := strings.Split(musicrid, "_")
-						//musicId := musicSlice[len(musicSlice)-1]
-						songResult.PlatformUniqueKey = kuWoSong
-						songResult.PlatformUniqueKey["UnKeyWord"] = song.Keyword
-						songResult.Source = "kuwo"
-						songResult.PlatformUniqueKey["header"] = header
-						songResult.PlatformUniqueKey["musicId"] = rids
-						songResult.Id = rids
-						if len(songResult.Id) > 0 {
-							songResult.Id = string(common.KuWoTag) + songResult.Id
+					for index, matched := range list {
+						if index >= maxIndex { //kuwo list order by score default
+							break
 						}
-						songResult.Name = songName
-						songResult.Artist = singerName
-						songResult.AlbumName, _ = kuWoSong["album"].(string)
-						songResult.Artist = strings.ReplaceAll(singerName, " ", "")
-						songResult.MatchScore, ok = base.CalScore(song, songName, singerName, index, maxIndex)
-						if !ok {
-							continue
+						kuWoSong, ok := matched.(common.MapType)
+						if ok {
+							rid, ok := kuWoSong["rid"].(json.Number)
+							rids := ""
+							if !ok {
+								rids, ok = kuWoSong["rid"].(string)
+							} else {
+								rids = rid.String()
+							}
+							if ok {
+								songResult := &common.Song{}
+								singerName, _ := kuWoSong["artist"].(string)
+								songName, _ := kuWoSong["name"].(string)
+								//musicSlice := strings.Split(musicrid, "_")
+								//musicId := musicSlice[len(musicSlice)-1]
+								songResult.PlatformUniqueKey = kuWoSong
+								songResult.PlatformUniqueKey["UnKeyWord"] = song.Keyword
+								songResult.Source = "kuwo"
+								songResult.PlatformUniqueKey["header"] = header
+								songResult.PlatformUniqueKey["musicId"] = rids
+								songResult.Id = rids
+								if len(songResult.Id) > 0 {
+									songResult.Id = string(common.KuWoTag) + songResult.Id
+								}
+								songResult.Name = songName
+								songResult.Artist = singerName
+								songResult.AlbumName, _ = kuWoSong["album"].(string)
+								songResult.Artist = strings.ReplaceAll(singerName, " ", "")
+								songResult.MatchScore, ok = base.CalScore(song, songName, singerName, index, maxIndex)
+								if !ok {
+									continue
+								}
+								// protect slice thread safe
+								lock.Lock()
+								songs = append(songs, songResult)
+								lock.Unlock()
+							}
 						}
-						songs = append(songs, songResult)
-
 					}
 				}
 			}
-
-		}
+		}(v)
 	}
-
+	wg.Wait()
 	return base.AfterSearchSong(song, songs)
 }
 func (m *KuWo) GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
