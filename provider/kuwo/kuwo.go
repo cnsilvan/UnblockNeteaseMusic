@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider/base"
+	"html"
 	"log"
 	"net/http"
 	"net/url"
@@ -78,8 +79,8 @@ func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 							}
 							if ok {
 								songResult := &common.Song{}
-								singerName, _ := kuWoSong["artist"].(string)
-								songName, _ := kuWoSong["name"].(string)
+								singerName := html.UnescapeString(kuWoSong["artist"].(string))
+								songName := html.UnescapeString(kuWoSong["name"].(string))
 								//musicSlice := strings.Split(musicrid, "_")
 								//musicId := musicSlice[len(musicSlice)-1]
 								songResult.PlatformUniqueKey = kuWoSong
@@ -93,7 +94,7 @@ func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 								}
 								songResult.Name = songName
 								songResult.Artist = singerName
-								songResult.AlbumName, _ = kuWoSong["album"].(string)
+								songResult.AlbumName = html.UnescapeString(kuWoSong["album"].(string))
 								songResult.Artist = strings.ReplaceAll(singerName, " ", "")
 								songResult.MatchScore, ok = base.CalScore(song, songName, singerName, index, maxIndex)
 								if !ok {

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/cookiestxt"
+	"golang.org/x/text/unicode/norm"
 	"io"
 	"io/ioutil"
 	"log"
@@ -92,12 +93,15 @@ func PanicWrapper(f func()) {
 }
 
 func ToJson(object interface{}) string {
-	json, err := json.Marshal(object)
+	result := bytes.NewBuffer([]byte{})
+	jsonEncoder := json.NewEncoder(result)
+	jsonEncoder.SetEscapeHTML(false)
+	err := jsonEncoder.Encode(object)
 	if err != nil {
 		log.Println("ToJson Error：", err)
 		return "{}"
 	}
-	return string(json)
+	return result.String()
 }
 func Exists(keys []string, h map[string]interface{}) bool {
 	for _, key := range keys {
@@ -142,8 +146,8 @@ func GenRandomBytes(size int) (blk []byte, err error) {
 
 func CalMatchScoresV2(beMatchedData string, beSplitedData string, matchType string) float32 {
 	var score float32 = 0.0
-	beMatchedData = width.Narrow.String(strings.ToUpper(strings.TrimSpace(beMatchedData)))
-	beSplitedData = width.Narrow.String(strings.ToUpper(strings.TrimSpace(beSplitedData)))
+	beMatchedData = width.Narrow.String(strings.ToUpper(strings.TrimSpace(norm.NFC.String(beMatchedData))))
+	beSplitedData = width.Narrow.String(strings.ToUpper(strings.TrimSpace(norm.NFC.String(beSplitedData))))
 	orginData := beMatchedData
 	if len(beMatchedData) < len(beSplitedData) {
 		orginData = beSplitedData
