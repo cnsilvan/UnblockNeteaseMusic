@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/cookiestxt"
+	"golang.org/x/text/unicode/norm"
 	"io"
 	"io/ioutil"
 	"log"
@@ -142,8 +143,8 @@ func GenRandomBytes(size int) (blk []byte, err error) {
 
 func CalMatchScoresV2(beMatchedData string, beSplitedData string, matchType string) float32 {
 	var score float32 = 0.0
-	beMatchedData = width.Narrow.String(strings.ToUpper(strings.TrimSpace(beMatchedData)))
-	beSplitedData = width.Narrow.String(strings.ToUpper(strings.TrimSpace(beSplitedData)))
+	beMatchedData = width.Narrow.String(strings.ToUpper(strings.TrimSpace(norm.NFC.String(beMatchedData))))
+	beSplitedData = width.Narrow.String(strings.ToUpper(strings.TrimSpace(norm.NFC.String(beSplitedData))))
 	orginData := beMatchedData
 	if len(beMatchedData) < len(beSplitedData) {
 		orginData = beSplitedData
