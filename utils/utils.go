@@ -93,12 +93,15 @@ func PanicWrapper(f func()) {
 }
 
 func ToJson(object interface{}) string {
-	json, err := json.Marshal(object)
+	result := bytes.NewBuffer([]byte{})
+	jsonEncoder := json.NewEncoder(result)
+	jsonEncoder.SetEscapeHTML(false)
+	err := jsonEncoder.Encode(object)
 	if err != nil {
 		log.Println("ToJson Error：", err)
 		return "{}"
 	}
-	return string(json)
+	return result.String()
 }
 func Exists(keys []string, h map[string]interface{}) bool {
 	for _, key := range keys {
