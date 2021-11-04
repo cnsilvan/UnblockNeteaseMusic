@@ -39,6 +39,7 @@ type SearchSong struct {
 	Quality     MusicQuality
 	OrderBy     SearchOrderBy
 	Limit       int
+	ArtistList  []string
 }
 type PlatformIdTag string
 

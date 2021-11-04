@@ -159,6 +159,7 @@ func Find(music common.SearchMusic) common.Song {
 			//	searchSong["name"] = utils.ReplaceAll(searchSong["name"].(string), `(\s*cover[:：\s][^\)]+)`, "")
 			//}
 			searchSong["artistsName"] = strings.Join(artists, " ")
+			searchSong["artistList"] = artists
 			searchSong["keyword"] = searchSong["name"].(string) + " " + searchSong["artistsName"].(string)
 			log.Println("search song:" + searchSong["keyword"].(string))
 			songT = *parseSongFn(searchSong, music)
@@ -183,6 +184,7 @@ func parseSongFn(key common.MapType, music common.SearchMusic) *common.Song {
 	if songId, ok := key["songId"]; ok {
 		id = songId.(string)
 	}
+	searchArtistList := key["artistList"].([]string)
 	key["musicQuality"] = music.Quality
 	var ch = make(chan *common.Song)
 	now := time.Now()
@@ -190,6 +192,7 @@ func parseSongFn(key common.MapType, music common.SearchMusic) *common.Song {
 		Keyword: searchKeyword, Name: searchSongName,
 		ArtistsName: searchArtistsName, Quality: music.Quality,
 		OrderBy: common.MatchedScoreDesc, Limit: 1,
+		ArtistList: searchArtistList,
 	}
 	songs := getSongFromAllSource(searchSong, ch)
 	log.Println("consumed:", time.Since(now))

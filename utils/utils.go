@@ -331,17 +331,22 @@ func ParseCookies(file string) []*http.Cookie {
 	return cl
 }
 
-func Combination(keyWords []string) (result []string) {
-	if len(keyWords) == 1 {
+func Combination(WordList []string) (result []string) {
+	if WordList == nil || len(WordList) == 0 {
 		return []string{
 			"",
-			keyWords[0],
 		}
 	}
-	tmp := Combination(keyWords[1:])
+	if len(WordList) == 1 {
+		return []string{
+			"",
+			WordList[0],
+		}
+	}
+	tmp := Combination(WordList[1:])
 	result = append(result, tmp...)
 	for _, v := range tmp {
-		result = append(result, keyWords[0]+" "+v)
+		result = append(result, WordList[0]+" "+v)
 	}
 	return result
 }

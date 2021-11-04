@@ -32,7 +32,7 @@ var lock sync.Mutex
 
 func (m *KuWo) SearchSong(song common.SearchSong) (songs []*common.Song) {
 	song = base.PreSearchSong(song)
-	keyWordList := utils.Combination(strings.Split(song.ArtistsName, " "))
+	keyWordList := utils.Combination(song.ArtistList)
 	wg := sync.WaitGroup{}
 	for _, v := range keyWordList {
 		wg.Add(1)
