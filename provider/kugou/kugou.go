@@ -1,13 +1,15 @@
-package kuwo
+package kugou
 
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/cnsilvan/UnblockNeteaseMusic/provider/base"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/network"
@@ -16,70 +18,77 @@ import (
 
 const (
 	APIGetSongURL = "http://trackercdn.kugou.com/i/v2/?"
+	SearchSongURL = "http://mobilecdn.kugou.com/api/v3/search/song?keyword=%s&page=1&pagesize=10"
 )
 
 type KuGou struct{}
 
+var lock sync.Mutex
+
 func (m *KuGou) SearchSong(song common.SearchSong) (songs []*common.Song) {
 	song = base.PreSearchSong(song)
 	cookies := getCookies()
-	result, err := base.Fetch(
-		"http://mobilecdn.kugou.com/api/v3/search/song?keyword="+song.Keyword+"&page=1&pagesize=10",
-		cookies, nil, true)
-	if err != nil {
-		log.Println(err)
-		return songs
-	}
-	data := result["data"]
-	if data != nil {
-		if dMap, ok := data.(common.MapType); ok {
-			if lists, ok := dMap["info"]; ok {
-				if listSlice, ok := lists.(common.SliceType); ok {
-					listLength := len(listSlice)
-					if listLength > 0 {
-						maxIndex := listLength/2 + 1
-						if maxIndex > 10 {
-							maxIndex = 10
+	keyWordList := utils.Combination(song.ArtistList)
+	wg := sync.WaitGroup{}
+	for _, v := range keyWordList {
+		wg.Add(1)
+		// use goroutine to deal multiple request
+		go func(word string) {
+			defer wg.Done()
+			keyWord := song.Name
+			if len(word) != 0 {
+				keyWord = fmt.Sprintf("%s %s", song.Name, word)
+			}
+			searchUrl := fmt.Sprintf(SearchSongURL, keyWord)
+			result, err := base.Fetch(searchUrl, cookies, nil, true)
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			if listSlice, ok := transSearchResponse(result); ok {
+				listLength := len(listSlice)
+				if listLength > 0 {
+					maxIndex := listLength/2 + 1
+					if maxIndex > 5 {
+						maxIndex = 5
+					}
+					for index, matched := range listSlice {
+						if index >= maxIndex {
+							break
 						}
-						for index, matched := range listSlice {
-							if index >= maxIndex {
-								break
-							}
-							if kugouSong, ok := matched.(common.MapType); ok {
-								if _, ok := kugouSong["hash"].(string); ok {
-									songResult := &common.Song{}
-									singerName, _ := kugouSong["singername"].(string)
-									songName, _ := kugouSong["songname"].(string)
-									songResult.PlatformUniqueKey = kugouSong
-									songResult.PlatformUniqueKey["UnKeyWord"] = song.Keyword
-									songResult.Source = "kugou"
-									songResult.Name = songName
-									songResult.Artist = singerName
-									songResult.Artist = strings.ReplaceAll(singerName, " ", "")
-									songResult.AlbumName, _ = kugouSong["album_name"].(string)
-									audioId, ok := kugouSong["audio_id"].(json.Number)
-									songResult.Id = audioId.String()
-									if ok && len(songResult.Id) > 0 {
-										songResult.Id = string(common.KuGouTag) + songResult.Id
-									}
-									songResult.MatchScore, ok = base.CalScore(song, songName, singerName, index, maxIndex)
-									if !ok {
-										continue
-									}
-									songs = append(songs, songResult)
-
+						if kugouSong, ok := matched.(common.MapType); ok {
+							if _, ok := kugouSong["hash"].(string); ok {
+								songResult := &common.Song{}
+								singerName, _ := kugouSong["singername"].(string)
+								songName, _ := kugouSong["songname"].(string)
+								songResult.PlatformUniqueKey = kugouSong
+								songResult.PlatformUniqueKey["UnKeyWord"] = song.Keyword
+								songResult.Source = "kugou"
+								songResult.Name = songName
+								songResult.Artist = singerName
+								songResult.Artist = strings.ReplaceAll(singerName, " ", "")
+								songResult.AlbumName, _ = kugouSong["album_name"].(string)
+								audioId, ok := kugouSong["audio_id"].(json.Number)
+								songResult.Id = audioId.String()
+								if ok && len(songResult.Id) > 0 {
+									songResult.Id = string(common.KuGouTag) + songResult.Id
 								}
-
+								songResult.MatchScore, ok = base.CalScore(song, songName, singerName, index, maxIndex)
+								if !ok {
+									continue
+								}
+								// protect slice thread safe
+								lock.Lock()
+								songs = append(songs, songResult)
+								lock.Unlock()
 							}
-
 						}
 					}
-
 				}
-
 			}
-		}
+		}(v)
 	}
+	wg.Wait()
 	return base.AfterSearchSong(song, songs)
 }
 func (m *KuGou) GetSongUrl(searchSong common.SearchMusic, song *common.Song) *common.Song {
@@ -170,4 +179,18 @@ func s4() string {
 	num := uint64((1 + common.Rand.Float64()) * 0x10000)
 	num = num | 0
 	return strconv.FormatUint(num, 16)[1:]
+}
+
+func transSearchResponse(obj map[string]interface{}) (common.SliceType, bool) {
+	data := obj["data"]
+	if data != nil {
+		if dMap, ok := data.(common.MapType); ok {
+			if lists, ok := dMap["info"]; ok {
+				if listSlice, ok := lists.(common.SliceType); ok {
+					return listSlice, true
+				}
+			}
+		}
+	}
+	return nil, false
 }

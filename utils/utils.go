@@ -334,3 +334,23 @@ func ParseCookies(file string) []*http.Cookie {
 	}
 	return cl
 }
+
+func Combination(WordList []string) (result []string) {
+	if WordList == nil || len(WordList) == 0 {
+		return []string{
+			"",
+		}
+	}
+	if len(WordList) == 1 {
+		return []string{
+			"",
+			WordList[0],
+		}
+	}
+	tmp := Combination(WordList[1:])
+	result = append(result, tmp...)
+	for _, v := range tmp {
+		result = append(result, WordList[0]+" "+v)
+	}
+	return result
+}
