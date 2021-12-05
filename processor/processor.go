@@ -177,9 +177,13 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			if netease.Forward {
 				aeskey = linuxApiKey
 			}
-			decryptECBBytes, encrypted := crypto.AesDecryptECB(decryptECBBytes, []byte(aeskey))
-			netease.Encrypted = encrypted
 			result := utils.ParseJson(decryptECBBytes)
+			netease.Encrypted = false;
+			if result == nil {
+				decryptECBBytes, encrypted := crypto.AesDecryptECB(decryptECBBytes, []byte(aeskey))
+				netease.Encrypted = encrypted
+				result = utils.ParseJson(decryptECBBytes)
+			}
 			netease.JsonBody = result
 
 			modified := false
