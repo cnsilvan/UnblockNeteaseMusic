@@ -45,6 +45,7 @@ func main() {
 		log.Println("EnableLocalVip=", *config.EnableLocalVip)
 		log.Println("UnlockSoundEffects=", *config.UnlockSoundEffects)
 		log.Println("QQCookieFile=", *config.QQCookieFile)
+		log.Println("LogWebTraffic=", *config.LogWebTraffic)
 		if host.InitHosts() == nil {
 			//go func() {
 			//	//	// terminal: $ go tool pprof -http=:8081 http://localhost:6060/debug/pprof/heap
