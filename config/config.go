@@ -31,6 +31,7 @@ var (
 	EnableLocalVip     = flag.Bool("lv", false, "enable local vip")
 	UnlockSoundEffects = flag.Bool("sef", false, "unlock SoundEffects")
 	QQCookieFile       = flag.String("qc", "./qq.cookie", "specify cookies file ,such as : \"qq.cookie\"")
+	LogWebTraffic      = flag.Bool("wl", false, "log request url and response")
 )
 
 func ValidParams() bool {

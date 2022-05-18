@@ -6,14 +6,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/cnsilvan/UnblockNeteaseMusic/cache"
-	"github.com/cnsilvan/UnblockNeteaseMusic/common"
-	"github.com/cnsilvan/UnblockNeteaseMusic/config"
-	"github.com/cnsilvan/UnblockNeteaseMusic/network"
-	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
-	"github.com/cnsilvan/UnblockNeteaseMusic/provider"
-	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
-	"golang.org/x/text/width"
 	"io"
 	"io/ioutil"
 	"log"
@@ -22,6 +14,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/cnsilvan/UnblockNeteaseMusic/cache"
+	"github.com/cnsilvan/UnblockNeteaseMusic/common"
+	"github.com/cnsilvan/UnblockNeteaseMusic/config"
+	"github.com/cnsilvan/UnblockNeteaseMusic/network"
+	"github.com/cnsilvan/UnblockNeteaseMusic/processor/crypto"
+	"github.com/cnsilvan/UnblockNeteaseMusic/provider"
+	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
+	"golang.org/x/text/width"
 )
 
 var (
@@ -192,6 +193,9 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 			if ok {
 				code = codeN.String()
 			}
+
+			logResponse(netease)
+
 			if strings.EqualFold(netease.Path, "/api/osx/version") {
 				modified = disableUpdate(netease)
 			} else if strings.Contains(netease.Path, "/usertool/sound/") {
@@ -201,9 +205,24 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				for key, resp := range netease.JsonBody {
 					if strings.Contains(key, "/usertool/sound/") {
 						modified = unblockSoundEffects(resp.(map[string]interface{}))
-					} else if *config.BlockAds && strings.Contains(netease.Path, "api/ad/") {
+					} else if *config.BlockAds && strings.Contains(key, "api/ad/") {
+						log.Println("block Ad has been triggered(" + key + ").")
 						resp = &common.MapType{}
 						modified = true
+					} else if *config.BlockAds && strings.EqualFold(key, "/api/v2/banner/get") {
+						newInfo := make(common.SliceType, 0)
+						info := netease.JsonBody[key]
+						for _, data := range info.(common.MapType)["banners"].(common.SliceType) {
+							if banner, ok := data.(common.MapType); ok {
+								if banner["adid"] == nil {
+									newInfo = append(newInfo, banner)
+								} else {
+									log.Println("block banner Ad has been triggered.")
+									modified = true
+								}
+							}
+						}
+						info.(common.MapType)["banners"] = newInfo
 					}
 				}
 			} else if !netease.Web && (code == "401" || code == "512") && strings.Contains(netease.Path, "manipulate") {
@@ -224,7 +243,9 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				// log.Println("NeedRepackage")
 				modifiedJson, _ := json.Marshal(netease.JsonBody)
 				// log.Println(netease)
-				// log.Println(string(modifiedJson))
+				if *config.LogWebTraffic {
+					log.Println("modified =>\n" + string(modifiedJson))
+				}
 				if netease.Encrypted {
 					modifiedJson = crypto.AesEncryptECB(modifiedJson, []byte(aeskey))
 				}
@@ -262,14 +283,24 @@ func disableUpdate(netease *Netease) bool {
 			if len(value.(common.SliceType)) > 0 {
 				modified = true
 				jsonBody["updateFiles"] = make(common.SliceType, 0)
+				log.Println("disable update has been triggered.")
 			}
 		default:
 		}
 	}
-	// modifiedJson, _ := json.Marshal(jsonBody)
-	// log.Println(string(modifiedJson))
 	return modified
 }
+
+func logResponse(netease *Netease) {
+	if *config.LogWebTraffic {
+		reqUrl := netease.Path
+		jsonBody := netease.JsonBody
+		modifiedJson, _ := json.Marshal(jsonBody)
+		sep := "===================================\n"
+		log.Println(sep + reqUrl + " => \n" + string(modifiedJson) + "\n")
+	}
+}
+
 func localVIP(netease *Netease) bool {
 	if !*config.EnableLocalVip {
 		return false
