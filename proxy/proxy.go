@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -26,7 +27,7 @@ var localhost = map[string]int{}
 
 func InitProxy() {
 	log.Println("-------------------Init Proxy-------------------")
-	address := "0.0.0.0:"
+	// address := "0.0.0.0:"
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		panic(err)
@@ -47,8 +48,8 @@ func InitProxy() {
 	}
 	log.Println("Http Proxy:")
 	log.Println(strings.Join(localhostKey, " , "))
-	go startTlsServer(address+strconv.Itoa(*config.TLSPort), *config.CertFile, *config.KeyFile, &HttpHandler{})
-	go startServer(address+strconv.Itoa(*config.Port), &HttpHandler{})
+	go startTlsServer(fmt.Sprintf("%s:%d", *config.Addr, *config.TLSPort), *config.CertFile, *config.KeyFile, &HttpHandler{})
+	go startServer(fmt.Sprintf("%s:%d", *config.Addr, *config.Port), &HttpHandler{})
 }
 func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request) {
 	defer func() {

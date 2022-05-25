@@ -35,6 +35,7 @@ sudo ./UnblockNeteaseMusic
 ```shell
 ./UnblockNeteaseMusic -h
 
+  -a	specify server listen address,such as : "0.0.0.0"
   -b	force the best music quality
   -c string
     	specify server cert,such as : "server.crt" (default "./server.crt")
