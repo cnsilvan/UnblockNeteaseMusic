@@ -8,13 +8,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
+	
 	"github.com/cnsilvan/UnblockNeteaseMusic/common"
 	"github.com/cnsilvan/UnblockNeteaseMusic/utils"
 	"github.com/cnsilvan/UnblockNeteaseMusic/version"
 )
 
 var (
+	Addr               = flag.String("a", "0.0.0.0", "specify server listen address,such as : \"0.0.0.0\"")
 	Port               = flag.Int("p", 80, "specify server port,such as : \"80\"")
 	TLSPort            = flag.Int("sp", 443, "specify server tls port,such as : \"443\"")
 	Source             = flag.String("o", "kuwo", "specify server source,such as : \"kuwo\"")
@@ -60,7 +61,7 @@ func ValidParams() bool {
 	for _, source := range sources {
 		common.Source = append(common.Source, source)
 	}
-
+	
 	currentPath, err := utils.GetCurrentPath()
 	if err != nil {
 		log.Println(err)
