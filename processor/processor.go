@@ -94,6 +94,7 @@ func RequestBefore(request *http.Request) *Netease {
 		}
 		request.Header.Del("x-napm-retry")
 		request.Header.Set("X-Real-IP", "118.66.66.66")
+		request.Header.Set("Accept-Encoding", "gzip, deflate")
 		requestBody, _ := ioutil.ReadAll(request.Body)
 		requestHold := ioutil.NopCloser(bytes.NewBuffer(requestBody))
 		request.Body = requestHold
@@ -179,7 +180,7 @@ func RequestAfter(request *http.Request, response *http.Response, netease *Netea
 				aeskey = linuxApiKey
 			}
 			result := utils.ParseJson(decryptECBBytes)
-			netease.Encrypted = false;
+			netease.Encrypted = false
 			if result == nil {
 				decryptECBBytes, encrypted := crypto.AesDecryptECB(decryptECBBytes, []byte(aeskey))
 				netease.Encrypted = encrypted
