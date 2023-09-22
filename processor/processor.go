@@ -320,9 +320,8 @@ func localVIP(netease *Netease) bool {
 		expireTime += 3162240000000
 		info.(common.MapType)["data"].(common.MapType)["redVipLevel"] = 7
 		info.(common.MapType)["data"].(common.MapType)["redVipAnnualCount"] = 1
-		info.(common.MapType)["data"].(common.MapType)["musicPackage"].(common.MapType)["expireTime"] = expireTime
-		info.(common.MapType)["data"].(common.MapType)["musicPackage"].(common.MapType)["vipCode"] = 230
-		info.(common.MapType)["data"].(common.MapType)["associator"].(common.MapType)["expireTime"] = expireTime
+		info.(common.MapType)["data"].(common.MapType)["musicPackage"] = &common.MapType{"expireTime": expireTime, "vipCode": 230}
+		info.(common.MapType)["data"].(common.MapType)["associator"] = &common.MapType{"expireTime": expireTime}
 	}
 	return modified
 }
@@ -631,22 +630,62 @@ func processSliceJson(jsonSlice common.SliceType) bool {
 }
 func processMapJson(jsonMap common.MapType) bool {
 	needModify := false
-	if utils.Exists([]string{"st", "subp", "pl", "dl"}, jsonMap) {
-		if v, _ := jsonMap["st"]; v.(json.Number).String() != "0" {
+	if utils.Exists([]string{"st", "subp", "pl", "dl", "chargeType", "cannotListenReason", "paidBigBang", "resConsumable", "cp", "fee", "payed", "fl", "flLevel", "plLevel"}, jsonMap) {
+		if v, _ := jsonMap["st"]; v != nil && v.(json.Number).String() != "0" {
 			// open gray song
 			jsonMap["st"] = 0
 			needModify = true
 		}
-		if v, _ := jsonMap["subp"]; v.(json.Number).String() != "1" {
+		if v, _ := jsonMap["subp"]; v != nil && v.(json.Number).String() != "1" {
 			jsonMap["subp"] = 1
 			needModify = true
 		}
-		if v, _ := jsonMap["pl"]; v.(json.Number).String() == "0" {
+		if v, _ := jsonMap["pl"]; v != nil && v.(json.Number).String() == "0" {
 			jsonMap["pl"] = 320000
 			needModify = true
 		}
-		if v, _ := jsonMap["dl"]; v.(json.Number).String() == "0" {
+		if v, _ := jsonMap["dl"]; v != nil && v.(json.Number).String() == "0" {
 			jsonMap["dl"] = 320000
+			needModify = true
+		}
+		if v, _ := jsonMap["chargeType"]; v != nil && v.(json.Number).String() == "1" {
+			jsonMap["chargeType"] = 0
+			needModify = true
+		}
+		if v, _ := jsonMap["paidBigBang"]; v != nil {
+			jsonMap["paidBigBang"] = true
+			needModify = true
+		}
+		if v, _ := jsonMap["resConsumable"]; v != nil {
+			jsonMap["resConsumable"] = false
+			needModify = true
+		}
+		if v, _ := jsonMap["cannotListenReason"]; v != nil {
+			jsonMap["cannotListenReason"] = nil
+			needModify = true
+		}
+		if v, _ := jsonMap["cp"]; v != nil && v.(json.Number).String() == "0" {
+			jsonMap["cp"] = 1
+			needModify = true
+		}
+		//if v, _ := jsonMap["fee"]; v != nil && v.(json.Number).String() == "1" {
+		//	jsonMap["fee"] = 8
+		//	needModify = true
+		//}
+		if v, _ := jsonMap["fl"]; v != nil && v.(json.Number).String() == "0" {
+			jsonMap["fl"] = 320000
+			needModify = true
+		}
+		if v, _ := jsonMap["flLevel"]; v != nil && v == "none" {
+			jsonMap["flLevel"] = "exhigh"
+			needModify = true
+		}
+		if v, _ := jsonMap["plLevel"]; v != nil && v == "none" {
+			jsonMap["plLevel"] = "exhigh"
+			needModify = true
+		}
+		if v, _ := jsonMap["payed"]; v != nil {
+			jsonMap["payed"] = 1
 			needModify = true
 		}
 	}
