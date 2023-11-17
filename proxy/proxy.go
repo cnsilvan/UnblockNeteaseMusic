@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -54,7 +55,7 @@ func InitProxy() {
 func (h *HttpHandler) ServeHTTP(resp http.ResponseWriter, request *http.Request) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("Recover panic : ", r)
+			log.Println("Recover panic : "+"\n"+string(debug.Stack()), r)
 		}
 	}()
 	//printMemStats()
