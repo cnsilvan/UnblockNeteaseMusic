@@ -8,7 +8,8 @@ import (
 	"html"
 	"log"
 	"net/http"
-	"path/filepath"
+	"net/url"
+	"path"
 	"regexp"
 	"strings"
 	"sync"
@@ -25,7 +26,9 @@ const (
 )
 
 var blockSongUrl = map[string]json.Number{
-	"2914632520.mp3": "7",
+	"2914632520.mp3":  "7",
+	"2272659253.mp3":  "7",
+	"3992993176.flac": "7",
 }
 
 var lock sync.Mutex
@@ -116,47 +119,58 @@ func (m *KuWo) GetSongUrl(searchSong common.SearchMusic, song *common.Song) *com
 					header["user-agent"] = append(header["user-agent"], "okhttp/3.10.0")
 					format := "flac|mp3"
 					br := ""
-					switch searchSong.Quality {
-					case common.Standard:
-						format = "mp3"
-						br = "&br=128kmp3"
-					case common.Higher:
-						format = "mp3"
-						br = "&br=192kmp3"
-					case common.ExHigh:
-						format = "mp3"
-					case common.Lossless:
-						format = "flac|mp3"
-					default:
-						format = "flac|mp3"
-					}
+					retry := true
+					for retry {
+						retry = false
+						switch searchSong.Quality {
+						case common.Standard:
+							format = "mp3"
+							br = "&br=128kmp3"
+						case common.Higher:
+							format = "mp3"
+							br = "&br=192kmp3"
+						case common.ExHigh:
+							format = "mp3"
+						case common.Lossless:
+							format = "flac|mp3"
+						default:
+							format = "flac|mp3"
+						}
 
-					clientRequest := network.ClientRequest{
-						Method:               http.MethodGet,
-						ForbiddenEncodeQuery: true,
-						RemoteUrl:            "http://mobi.kuwo.cn/mobi.s?f=kuwo&q=" + base64.StdEncoding.EncodeToString(Encrypt([]byte("corp=kuwo&p2p=1&type=convert_url2&sig=0&format="+format+"&rid="+musicId+br))),
-						Header:               header,
-						Proxy:                true,
-					}
-					resp, err := network.Request(&clientRequest)
-					if err != nil {
-						log.Println(err)
-						return song
-					}
-					defer resp.Body.Close()
-					body, err := network.GetResponseBody(resp, false)
-					reg := regexp.MustCompile(`http[^\s$"]+`)
-					address := string(body)
-					params := reg.FindStringSubmatch(address)
-					if len(params) > 0 {
-						if duration, ok := blockSongUrl[filepath.Base(params[0])]; ok && song.PlatformUniqueKey["duration"].(json.Number) == duration {
-							log.Println(song.PlatformUniqueKey["UnKeyWord"].(string) + "，该歌曲酷我版权保护")
+						clientRequest := network.ClientRequest{
+							Method:               http.MethodGet,
+							ForbiddenEncodeQuery: true,
+							RemoteUrl:            "http://mobi.kuwo.cn/mobi.s?f=kuwo&q=" + base64.StdEncoding.EncodeToString(Encrypt([]byte("corp=kuwo&p2p=1&type=convert_url2&sig=0&format="+format+"&rid="+musicId+br))),
+							Header:               header,
+							Proxy:                true,
+						}
+						resp, err := network.Request(&clientRequest)
+						if err != nil {
+							log.Println(err)
 							return song
 						}
-						song.Url = params[0]
-						return song
+						defer resp.Body.Close()
+						body, err := network.GetResponseBody(resp, false)
+						reg := regexp.MustCompile(`http[^\s$"]+`)
+						address := string(body)
+						params := reg.FindStringSubmatch(address)
+						if len(params) > 0 {
+							u, _ := url.Parse(params[0])
+							if _, ok := blockSongUrl[path.Base(u.Path)]; ok {
+								log.Println(song.PlatformUniqueKey["UnKeyWord"].(string) + ` ` + format + "，该歌曲酷我版权保护")
+								if searchSong.Quality > 0 {
+									retry = true
+									log.Println(song.PlatformUniqueKey["UnKeyWord"].(string) + " ，降低音质重试")
+									searchSong.Quality = searchSong.Quality - 1
+								} else {
+									return song
+								}
+							} else {
+								song.Url = params[0]
+								return song
+							}
+						}
 					}
-
 				}
 			}
 		}
