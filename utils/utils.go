@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"sort"
 	"strings"
 
@@ -86,7 +87,7 @@ func ParseJsonV4(reader io.Reader, dest interface{}) error {
 func PanicWrapper(f func()) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("Recover panic : ", r)
+			log.Println("Recover panic : "+"\n"+string(debug.Stack()), r)
 		}
 	}()
 	f()
@@ -105,11 +106,11 @@ func ToJson(object interface{}) string {
 }
 func Exists(keys []string, h map[string]interface{}) bool {
 	for _, key := range keys {
-		if !Exist(key, h) {
-			return false
+		if Exist(key, h) {
+			return true
 		}
 	}
-	return true
+	return false
 }
 func Exist(key string, h map[string]interface{}) bool {
 	_, ok := h[key]

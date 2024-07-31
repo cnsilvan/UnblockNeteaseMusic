@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 
 	"github.com/cnsilvan/UnblockNeteaseMusic/config"
@@ -23,7 +24,7 @@ func main() {
 	//fmt.Println(version.AppVersion())
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("Recover panic : ", r)
+			log.Println("Recover panic : "+"\n"+string(debug.Stack()), r)
 			restoreHosts()
 		}
 	}()
